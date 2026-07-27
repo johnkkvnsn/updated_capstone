@@ -9,3 +9,6 @@ error_log
 # Ignore IDE files
 .vscode/
 .idea/
+
+# Ignore local reference templates
+templates/
