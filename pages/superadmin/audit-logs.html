@@ -64,6 +64,7 @@
                   <th>Description</th>
                   <th>Module</th>
                   <th>IP Address</th>
+                  <th>Location</th>
                   <th>Timestamp</th>
                 </tr>
               </thead>
@@ -143,6 +144,7 @@
         <td style="font-size:.82rem;">${l.description}</td>
         <td><span class="badge badge-info" style="font-size:.7rem;">${l.module}</span></td>
         <td style="font-size:.78rem;color:#64748b;">${l.ipAddress || '—'}</td>
+        <td style="font-size:.78rem;color:#64748b;">${l.location || 'Unknown'}</td>
         <td style="font-size:.78rem;white-space:nowrap;">${formatDateTime(l.createdAt)}</td>
       </tr>`;
         }))).join('');
@@ -159,7 +161,7 @@
     async function exportLogs() {
       exportCSV(await Promise.all(allLogs.map(async l => {
         const u = await DB.find('users', { id: l.userId });
-        return { User: u?.fullName || 'System', Action: l.action, Description: l.description, Module: l.module, Timestamp: l.createdAt };
+        return { User: u?.fullName || 'System', Action: l.action, Description: l.description, Module: l.module, IP: l.ipAddress, Location: l.location, Timestamp: l.createdAt };
       })), 'BFMSS_Audit_Logs');
     }
     function toggleTimelineView() {

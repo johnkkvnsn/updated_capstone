@@ -6,6 +6,32 @@ header('Content-Type: application/json');
 $input = json_decode(file_get_contents('php://input'), true);
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
+function getRealIpAddr() {
+    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+        return $_SERVER['HTTP_CLIENT_IP'];
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        return trim($ips[0]);
+    } else {
+        return $_SERVER['REMOTE_ADDR'];
+    }
+}
+
+function getLocationFromIP($ip) {
+    if ($ip == '127.0.0.1' || $ip == '::1') return 'Localhost';
+    
+    // Quick API call to ip-api.com
+    $ctx = stream_context_create(['http' => ['timeout' => 2]]);
+    $response = @file_get_contents("http://ip-api.com/json/{$ip}?fields=city,country", false, $ctx);
+    if ($response) {
+        $data = json_decode($response, true);
+        if (isset($data['city']) && isset($data['country'])) {
+            return $data['city'] . ', ' . $data['country'];
+        }
+    }
+    return 'Unknown Location';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
     $email = trim($input['email'] ?? '');
     $password = trim($input['password'] ?? '');
@@ -29,9 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
         $updateStmt->execute([$user['id']]);
 
         // Audit Log
-        $ipAddress = $_SERVER['REMOTE_ADDR'];
-        $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress) VALUES (?, 'LOGIN', 'User logged in', 'Authentication', ?)");
-        $logStmt->execute([$user['id'], $ipAddress]);
+        $ipAddress = getRealIpAddr();
+        $location = getLocationFromIP($ipAddress);
+        $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress, location) VALUES (?, 'LOGIN', 'User logged in', 'Authentication', ?, ?)");
+        $logStmt->execute([$user['id'], $ipAddress, $location]);
 
         sendJsonResponse(['status' => 'success', 'user' => $user]);
     } else {
@@ -61,17 +88,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
     $stmt->execute([$fullName, $email, $hashedPassword, $roleId, $barangayId, $municipality]);
     $newUserId = $pdo->lastInsertId();
 
-    $ipAddress = $_SERVER['REMOTE_ADDR'];
-    $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress) VALUES (?, 'REGISTER', 'User registered', 'Authentication', ?)");
-    $logStmt->execute([$newUserId, $ipAddress]);
+    $ipAddress = getRealIpAddr();
+    $location = getLocationFromIP($ipAddress);
+    $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress, location) VALUES (?, 'REGISTER', 'User registered', 'Authentication', ?, ?)");
+    $logStmt->execute([$newUserId, $ipAddress, $location]);
 
     sendJsonResponse(['status' => 'success', 'userId' => $newUserId]);
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'logout') {
     if (isset($_SESSION['user'])) {
         $userId = $_SESSION['user']['id'];
-        $ipAddress = $_SERVER['REMOTE_ADDR'];
-        $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress) VALUES (?, 'LOGOUT', 'User logged out', 'Authentication', ?)");
-        $logStmt->execute([$userId, $ipAddress]);
+        $ipAddress = getRealIpAddr();
+        $location = getLocationFromIP($ipAddress);
+        $logStmt = $pdo->prepare("INSERT INTO audit_logs (userId, action, description, module, ipAddress, location) VALUES (?, 'LOGOUT', 'User logged out', 'Authentication', ?, ?)");
+        $logStmt->execute([$userId, $ipAddress, $location]);
     }
     
     session_destroy();

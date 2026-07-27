@@ -205,6 +205,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     description TEXT,
     module VARCHAR(100) NOT NULL,
     ipAddress VARCHAR(50) DEFAULT 'N/A',
+    location VARCHAR(255) DEFAULT 'Unknown',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

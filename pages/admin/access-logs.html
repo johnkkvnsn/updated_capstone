@@ -37,7 +37,7 @@
         </div>
 
         <div class="table-wrapper">
-          <table><thead><tr><th>#</th><th>User</th><th>Role</th><th>Action</th><th>Description</th><th>IP Address</th><th>Date & Time</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>#</th><th>User</th><th>Role</th><th>Action</th><th>Description</th><th>IP Address</th><th>Location</th><th>Date & Time</th><th>Status</th></tr></thead>
           <tbody id="logs-tbody"></tbody></table>
         </div>
         <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
@@ -100,6 +100,7 @@ async function renderData(data) {
         <td><span class="badge ${isSuccess?'badge-success':isFail?'badge-danger':'badge-secondary'}" style="font-size:.7rem;">${l.action}</span></td>
         <td style="font-size:.82rem;">${l.description}</td>
         <td style="font-size:.78rem;color:#64748b;">${l.ipAddress||'—'}</td>
+        <td style="font-size:.78rem;color:#64748b;">${l.location||'Unknown'}</td>
         <td style="font-size:.78rem;white-space:nowrap;">${formatDateTime(l.createdAt)}</td>
         <td>${isSuccess?'<span class="badge badge-success">Success</span>':isFail?'<span class="badge badge-danger">Failed</span>':'<span class="badge badge-secondary">Info</span>'}</td>
       </tr>`;
@@ -115,7 +116,7 @@ async function renderData(data) {
 }
 
 async function exportLogs() {
-  exportCSV(await Promise.all(allLogs.map(async l=>{const u=await DB.find('users', { id: l.userId });return{User:u?.fullName||'System',Action:l.action,Description:l.description,IP:l.ipAddress,Timestamp:l.createdAt};})), 'BFMSS_Access_Logs');
+  exportCSV(await Promise.all(allLogs.map(async l=>{const u=await DB.find('users', { id: l.userId });return{User:u?.fullName||'System',Action:l.action,Description:l.description,IP:l.ipAddress,Location:l.location,Timestamp:l.createdAt};})), 'BFMSS_Access_Logs');
 }
 </script>
 </body>
