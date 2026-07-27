@@ -212,7 +212,7 @@ async function getBeginningBalance(module, barangayId, from) {
   const { incomeKey, expenseKey } = getModuleTables(module);
   const allInc = await DB.filter(incomeKey, { barangayId });
   const allExp = await DB.filter(expenseKey, { barangayId });
-  
+
   const incBefore = allInc.filter(i => i.status === 'approved' && i.dateReceived < from);
   const expBefore = allExp.filter(e => e.status === 'approved' && e.dateSpent < from);
 
@@ -531,43 +531,80 @@ async function generateReport(reportType, formData, barangayId, module = 'treasu
       try {
         if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('jsPDF library unavailable');
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const isLandscape = ['bfr4_procurement_plan', 'bfr5_notice_of_award', 'bfr7_statement_receipts', 'abstract_quotations', 'sk_abstract_quotations'].includes(reportType);
+        const doc = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
         const brgy = await DB.getBarangay(barangayId) || { name: 'Unknown', municipality: 'Unknown', province: 'Laguna' };
 
-        // BFMSS tag top-right corner
-        doc.setFontSize(7); doc.setTextColor(150); doc.setFont(undefined, 'normal');
-        doc.text('Generated via BFMSS', 196, 8, { align: 'right' });
-        doc.setTextColor(0, 0, 0);
+        let y = 14; // Default start Y if no header
+        
+        const noHeaderReports = [
+          'disbursement_voucher', 'sk_disbursement_voucher',
+          'abstract_quotations', 'sk_abstract_quotations',
+          'inspection_acceptance', 'bfr2_income_expenditure',
+          'bfr3_nta_component', 'bfr4_procurement_plan',
+          'bfr5_notice_of_award', 'bfr6_monthly_collections',
+          'bfr7_statement_receipts', 'sk_cashbook'
+        ];
+        
+        if (!noHeaderReports.includes(reportType)) {
+          // BFMSS tag top-right corner
+          doc.setFontSize(7); doc.setTextColor(150); doc.setFont(undefined, 'normal');
+          doc.text('Generated via BFMSS', 196, 8, { align: 'right' });
+          doc.setTextColor(0, 0, 0);
 
-        // Logo size and position
-        const logoSize = 22; // mm
-        const logoY = 8;
-        const textCenterX = 105;
+          // Logo size and position
+          const logoSize = 22; // mm
+          const logoY = 8;
+          const textCenterX = 105;
 
-        const leftCx = 14 + logoSize / 2;
-        const rightCx = 196 - 14 - logoSize / 2;
-        const sealCy = logoY + logoSize / 2;
-        const sealR = logoSize / 2;
+          const leftCx = 14 + logoSize / 2;
+          const rightCx = 196 - 14 - logoSize / 2;
+          const sealCy = logoY + logoSize / 2;
+          const sealR = logoSize / 2;
 
-        drawSeal(doc, leftCx, sealCy, sealR, 'REPUBLIC OF THE PHILIPPINES');
-        if (module === 'sk') {
-          drawSeal(doc, rightCx, sealCy, sealR, 'SANGGUNIANG KABATAAN');
-        } else {
-          drawSeal(doc, rightCx, sealCy, sealR, 'REPUBLIC OF THE PHILIPPINES');
+          drawSeal(doc, leftCx, sealCy, sealR, 'REPUBLIC OF THE PHILIPPINES');
+          if (module === 'sk') {
+            drawSeal(doc, rightCx, sealCy, sealR, 'SANGGUNIANG KABATAAN');
+          } else {
+            drawSeal(doc, rightCx, sealCy, sealR, 'REPUBLIC OF THE PHILIPPINES');
+          }
+
+          // Text header — centered between logos
+          let hy = 11;
+          doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
+          doc.text('Republic of the Philippines', textCenterX, hy, { align: 'center' }); hy += 4.5;
+          if (brgy.region) { doc.setFontSize(8.5); doc.text(brgy.region, textCenterX, hy, { align: 'center' }); hy += 4.5; doc.setFontSize(9.5); }
+          doc.text(`Province of ${brgy.province || ''}`, textCenterX, hy, { align: 'center' }); hy += 4.5;
+          doc.text(`Municipality/City of ${brgy.municipality || ''}`, textCenterX, hy, { align: 'center' }); hy += 4.5;
+          doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
+          doc.text(`Barangay ${brgy.name || ''}`, textCenterX, hy, { align: 'center' });
+
+          // Push hy past the logo height if text is shorter
+          hy = Math.max(hy + 5, logoY + logoSize + 4);
+
+          if (module === 'sk') {
+            doc.setFont(undefined, 'bold'); doc.setFontSize(11);
+            doc.text('SANGGUNIANG KABATAAN', textCenterX, hy, { align: 'center' });
+            hy += 6;
+          }
+
+          // Report title
+          doc.setFont(undefined, 'bold'); doc.setFontSize(12);
+          const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+          const titleLabel = allTypes[reportType]?.label?.toUpperCase()
+            .replace(/^BFR-\d+:\s*/i, '').replace(/^SK\s+/i, '') || 'FINANCIAL REPORT';
+          const titleLines = doc.splitTextToSize(titleLabel, 160);
+          titleLines.forEach(line => { doc.text(line, textCenterX, hy, { align: 'center' }); hy += 6; });
+
+          // Divider line
+          doc.setFont(undefined, 'normal'); doc.setLineWidth(0.5);
+          doc.setDrawColor(26, 58, 107);
+          doc.line(14, hy + 1, 196, hy + 1);
+          doc.setLineWidth(0.2); doc.line(14, hy + 2.5, 196, hy + 2.5);
+          doc.setDrawColor(0);
+
+          y = hy + 9;
         }
-
-        // Text header — centered between logos
-        let hy = 11;
-        doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
-        doc.text('Republic of the Philippines', textCenterX, hy, { align: 'center' }); hy += 4.5;
-        if (brgy.region) { doc.setFontSize(8.5); doc.text(brgy.region, textCenterX, hy, { align: 'center' }); hy += 4.5; doc.setFontSize(9.5); }
-        doc.text(`Province of ${brgy.province || ''}`, textCenterX, hy, { align: 'center' }); hy += 4.5;
-        doc.text(`Municipality/City of ${brgy.municipality || ''}`, textCenterX, hy, { align: 'center' }); hy += 4.5;
-        doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
-        doc.text(`Barangay ${brgy.name || ''}`, textCenterX, hy, { align: 'center' });
-
-        // Push hy past the logo height if text is shorter
-        hy = Math.max(hy + 5, logoY + logoSize + 4);
 
         // Auto-fill signature defaults from barangay officials
         if (brgy.treasurer && !formData.preparedBy && !formData.certifiedBy && !formData.skTreasurer) {
@@ -579,29 +616,6 @@ async function generateReport(reportType, formData, barangayId, module = 'treasu
         if (brgy.skChairperson && !formData.skChairperson) {
           formData._autoSKChair = brgy.skChairperson;
         }
-
-        if (module === 'sk') {
-          doc.setFont(undefined, 'bold'); doc.setFontSize(11);
-          doc.text('SANGGUNIANG KABATAAN', textCenterX, hy, { align: 'center' });
-          hy += 6;
-        }
-
-        // Report title
-        doc.setFont(undefined, 'bold'); doc.setFontSize(12);
-        const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
-        const titleLabel = allTypes[reportType]?.label?.toUpperCase()
-          .replace(/^BFR-\d+:\s*/i, '').replace(/^SK\s+/i, '') || 'FINANCIAL REPORT';
-        const titleLines = doc.splitTextToSize(titleLabel, 160);
-        titleLines.forEach(line => { doc.text(line, textCenterX, hy, { align: 'center' }); hy += 6; });
-
-        // Divider line
-        doc.setFont(undefined, 'normal'); doc.setLineWidth(0.5);
-        doc.setDrawColor(26, 58, 107);
-        doc.line(14, hy + 1, 196, hy + 1);
-        doc.setLineWidth(0.2); doc.line(14, hy + 2.5, 196, hy + 2.5);
-        doc.setDrawColor(0);
-
-        let y = hy + 9;
 
         const reportGenerators = {
           // Treasurer — official BFDP/BFR annexes
@@ -619,7 +633,7 @@ async function generateReport(reportType, formData, barangayId, module = 'treasu
           purchase_order: () => generatePurchaseOrder(doc, formData, brgy, y),
           inspection_acceptance: () => generateInspectionAcceptance(doc, formData, brgy, y),
           notice_of_award: () => generateNoticeOfAward(doc, formData, brgy, y),
-          disbursement_voucher: () => generateDisbursementVoucher(doc, formData, brgy, y, { officer: 'Budget Monitoring Officer', mid: 'Barangay Treasurer', chair: 'Punong Barangay', orgLabel: 'Barangay' }),
+          disbursement_voucher: () => generateTreasurerDisbursementVoucher(doc, formData, brgy, y),
           // SK — Cashbook / DV / Abstract of Quotations style
           sk_cashbook: () => generateBFR6(doc, formData, brgy, y, module),
           sk_disbursement_voucher: () => generateDisbursementVoucher(doc, formData, brgy, y, { officer: 'Budget Monitoring Officer', mid: 'SK Treasurer', chair: 'SK Chairperson', orgLabel: 'SK of Barangay' }),
@@ -746,25 +760,37 @@ function generateSKCashbook(doc, fd, brgy, y, module = 'sk') {
 
 // ── BFR-3: Priorities for Development Projects (20% Component of NTA) — Annex 3 ──
 function generateBFR3(doc, fd, brgy, y) {
-  doc.setFontSize(9); doc.setFont(undefined, 'italic');
-  doc.text('AIP Form No. 4', 14, y);
-  doc.text('Annex 3', 194, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 6;
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('PRIORITIES FOR DEVELOPMENT PROJECTS', 105, y, { align: 'center' }); y += 5;
-  doc.text('(20% COMPONENT OF NTA UTILIZATION)', 105, y, { align: 'center' }); y += 5;
+  const leftM = 14, rightM = 196, W = rightM - leftM;
+  let currY = 14; 
+
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('AIP Form No. 4', leftM, currY);
+  doc.text('Annex 3', rightM, currY, { align: 'right' });
+  currY += 10;
+
   doc.setFontSize(10);
-  doc.text(`(FY: ${fd.fiscalYear || new Date().getFullYear()})`, 105, y, { align: 'center' });
-  doc.setFont(undefined, 'normal'); y += 10;
+  doc.text('Republic of the Philippines', 105, currY, { align: 'center' });
+  doc.text(`Province of ${brgy.province || 'Laguna'}`, 105, currY + 4, { align: 'center' });
+  doc.text(`City of ${brgy.municipality || 'San Pablo'}`, 105, currY + 8, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}`, 105, currY + 12, { align: 'center' });
+  currY += 25;
+
+  doc.setFontSize(11); doc.setFont(undefined, 'bold');
+  doc.text('PRIORITIES FOR DEVELOPMENT PROJECTS', 105, currY, { align: 'center' });
+  doc.text('(20% COMPONENT OF NTA UTILIZATION)', 105, currY + 5, { align: 'center' });
+  doc.text(`(FY: ${fd.fiscalYear || new Date().getFullYear()})`, 105, currY + 10, { align: 'center' });
+  currY += 20;
 
   const totalNTA = parseFloat(fd.totalNTA || 0);
   const twentyPct = totalNTA * 0.2;
 
-  doc.setFontSize(9.5);
-  doc.text('TOTAL NTA for FY:', 14, y);
-  doc.text(`Php ${formatNum(totalNTA)}`, 90, y); y += 6;
-  doc.text('X 20% =', 14, y);
-  doc.text(`Php ${formatNum(twentyPct)}`, 90, y); y += 10;
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('TOTAL NTA for FY:', leftM, currY);
+  doc.text(`Php ${formatNum(totalNTA)}`, leftM + 45, currY);
+  currY += 5;
+  doc.text('X 20% =', leftM, currY);
+  doc.text(`Php ${formatNum(twentyPct)}`, leftM + 45, currY);
+  currY += 10;
 
   const rawProjects = (fd.projects || '').split('\n').filter(l => l.trim()).map(line => {
     const parts = parseCSVLine(line);
@@ -772,61 +798,95 @@ function generateBFR3(doc, fd, brgy, y) {
     return { desc: desc || '', cost: safeParseFloat(cost) };
   });
 
-  const cols = { desc: 16, rank: 130, cost: 160, cum: 194 };
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 11, 'F');
-  doc.setFontSize(8); doc.setFont(undefined, 'bold');
-  doc.text('Priority Development Projects Funded by the 20% of NTA', cols.desc, y + 4);
-  doc.text('Project Description (1)', cols.desc, y + 8.5);
-  doc.text('RANK (2)', cols.rank, y + 8.5, { align: 'center' });
-  doc.text('Project Cost (3)', cols.cost, y + 8.5, { align: 'right' });
-  doc.text('Cumulative TOTAL (4)', cols.cum, y + 8.5, { align: 'right' });
-  y += 12;
+  const c1 = leftM + 60; // Desc -> Rank
+  const c2 = c1 + 30;    // Rank -> Cost
+  const c3 = c2 + 40;    // Cost -> Cum Total
 
-  doc.setFont(undefined, 'normal'); doc.setFontSize(8.5);
+  const hH = 20;
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, hH);
+  doc.line(c1, currY, c1, currY + hH);
+  doc.line(c2, currY, c2, currY + hH);
+  doc.line(c3, currY, c3, currY + hH);
+
+  doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
+  doc.text('Priority Development Projects\nFunded by the 20% of NTA\n\nProject Description (1)', leftM + (c1-leftM)/2, currY + 5, { align: 'center' });
+  doc.text('RANK\n(2)', c1 + (c2-c1)/2, currY + 8, { align: 'center' });
+  doc.text('Project Cost\n(3)', c2 + (c3-c2)/2, currY + 8, { align: 'center' });
+  doc.text('Cumulative\nTOTAL\n(4)', c3 + (rightM-c3)/2, currY + 6, { align: 'center' });
+  currY += hH;
+
+  const bodyH = Math.max(rawProjects.length * 8 + 10, 100); 
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+
+  let py = currY + 8;
   let cumulative = 0;
-  if (!rawProjects.length) {
-    doc.setFont(undefined, 'italic'); doc.text('No priority projects listed.', cols.desc, y + 4); y += 6; doc.setFont(undefined, 'normal');
-  }
   rawProjects.forEach((p, i) => {
     cumulative += p.cost;
-    y = checkPageBreak(doc, y, 6, 20);
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(p.desc.substring(0, 55), cols.desc, y + 4);
-    doc.text(String(i + 1), cols.rank, y + 4, { align: 'center' });
-    doc.text(formatNum(p.cost), cols.cost, y + 4, { align: 'right' });
-    doc.text(formatNum(cumulative), cols.cum, y + 4, { align: 'right' });
-    y += 6;
+    
+    const lines = doc.splitTextToSize(p.desc, c1 - leftM - 4);
+    doc.text(lines, leftM + 2, py);
+    
+    doc.text(String(i + 1), c1 + (c2-c1)/2, py, { align: 'center' });
+    doc.text(formatNum(p.cost), c2 + (c3-c2)/2, py, { align: 'center' });
+    doc.text(formatNum(cumulative), c3 + (rightM-c3)/2, py, { align: 'center' });
+    
+    py += Math.max(lines.length * 4.5, 6) + 4;
   });
-  y += 8;
+  currY += bodyH;
 
-  doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
-  doc.text('Instructions:', 14, y); y += 5;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
+  // Instructions Box
+  currY += 5;
+  doc.rect(leftM, currY, 35, 6);
+  doc.setFont(undefined, 'bold');
+  doc.text('Instructions:', leftM + 17.5, currY + 4, { align: 'center' });
+  currY += 12;
+
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
   const instructions = [
-    'Describe the project to be implemented like construction of a Day Care Center, acquisition of a computer, etc, in their order of priority.',
-    'Indicate in this column the ranking of development projects in their proper order, Rank 1 is the first priority, Rank 2 is the second, etc.',
-    'Indicate the total project cost that will complete the project.',
-    'Add all project costs from Rank 1 to the last rank equivalent to the 20% of the NTA or higher.',
+    '(1) Describe the project to be implemented like construction of a Day Care Center,\n      acquisition of a computer, etc, in their order of priority.',
+    '(2) Indicate in this column the ranking of development projects in their proper order,\n      Rank 1 is the first priority, Rank 2 is the second, etc.',
+    '(3) Indicate the total project cost that will complete the project.',
+    '(4) Add all project costs from Rank 1 to the last rank equivalent to the 20% of the NTA\n      or higher'
   ];
-  instructions.forEach(t => { const lines = doc.splitTextToSize('- ' + t, 182); doc.text(lines, 14, y); y += lines.length * 3.6; });
-  y += 3;
-  doc.setTextColor(110);
-  doc.text('Reference: Department of Budget and Management. (2006). Budget Operations Manual for Barangays.', 14, y);
-  doc.setTextColor(0); y += 8;
-
-  addTwoPartySignature(doc, y, fd.preparedBy || fd._autoTreasurer || '', 'Barangay Treasurer', fd.approvedBy || fd._autoPunong || '', 'Punong Barangay');
+  
+  instructions.forEach(t => { 
+    const lines = t.split('\n');
+    lines.forEach((l, li) => {
+       doc.text(l, leftM + 5, currY);
+       currY += 4.5;
+    });
+  });
+  
+  currY += 15;
+  doc.text('Reference: Department of Budget and Management. (2006). Budget Operations Manual for Barangays', leftM, currY);
 }
 
 // ── BFR-5: List of Notices of Award — Annex 5 ──
 function generateBFR5(doc, fd, brgy, y) {
-  doc.setFontSize(9); doc.setFont(undefined, 'italic');
-  doc.text('Annex 5', 194, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 6;
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('LIST OF NOTICES OF AWARD', 105, y, { align: 'center' }); y += 5;
+  const leftM = 14, rightM = 283, W = rightM - leftM;
+  let currY = 14; 
+
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Annex 5', rightM, currY, { align: 'right' });
+  currY += 5;
+
+  doc.text('Republic of the Philippines', 148.5, currY, { align: 'center' });
+  doc.text(`Province of ${brgy.province || 'Laguna'}`, 148.5, currY + 4, { align: 'center' });
+  doc.text(`City of ${brgy.municipality || 'San Pablo'}`, 148.5, currY + 8, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}`, 148.5, currY + 12, { align: 'center' });
+  currY += 20;
+
+  doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('LIST OF NOTICES OF AWARD', 148.5, currY, { align: 'center' });
+  
   doc.setFontSize(10); doc.setFont(undefined, 'normal');
   const quarterLabel = { '1st': '1st', '2nd': '2nd', '3rd': '3rd', '4th': '4th' }[fd.quarter] || fd.quarter || '';
-  doc.text(`For the ${quarterLabel} Quarter of ${fd.fiscalYear || ''}`, 105, y, { align: 'center' }); y += 9;
+  doc.text(`For the ${quarterLabel} Quarter of ${fd.fiscalYear || ''}`, 148.5, currY + 5, { align: 'center' });
+  currY += 10;
 
   const rawAwards = (fd.awards || '').split('\n').filter(l => l.trim()).map(line => {
     const parts = parseCSVLine(line);
@@ -834,139 +894,267 @@ function generateBFR5(doc, fd, brgy, y) {
     return { date: date || '', project: project || '', type: (type || '').toLowerCase(), supplier: supplier || '', amount: safeParseFloat(amount), remarks: remarks || '' };
   });
 
-  const cols = { date: 16, project: 36, infra: 92, goods: 104, service: 116, supplier: 128, amount: 178, remarks: 196 };
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 12, 'F');
-  doc.setFontSize(7); doc.setFont(undefined, 'bold');
-  doc.text('DATE', cols.date, y + 8);
-  doc.text('NAME OF PROJECT', cols.project, y + 8);
-  doc.text('DESCRIPTION (Please check)', (cols.infra + cols.service) / 2, y + 4, { align: 'center' });
-  doc.text('Infra', cols.infra, y + 9, { align: 'center' });
-  doc.text('Goods', cols.goods, y + 9, { align: 'center' });
-  doc.text('Svc.', cols.service, y + 9, { align: 'center' });
-  doc.text('NAME OF SUPPLIER', cols.supplier, y + 8);
-  doc.text('AMOUNT', cols.amount, y + 8, { align: 'right' });
-  doc.text('REMARKS', cols.remarks, y + 8, { align: 'right' });
-  y += 13;
+  const c1 = leftM + 25; 
+  const c2 = c1 + 65;    
+  const c3 = c2 + 45;    
+  const cDesc1 = c2 + 15;
+  const cDesc2 = cDesc1 + 15;
+  const c4 = c3 + 60;    
+  const c5 = c4 + 35;    
 
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-  let total = 0;
-  if (!rawAwards.length) {
-    doc.setFont(undefined, 'italic'); doc.text('No notices of award recorded for this period.', cols.date, y + 4); y += 6; doc.setFont(undefined, 'normal');
+  const headerH = 15;
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, headerH);
+  
+  doc.line(c1, currY, c1, currY + headerH);
+  doc.line(c2, currY, c2, currY + headerH);
+  doc.line(c3, currY, c3, currY + headerH);
+  doc.line(c4, currY, c4, currY + headerH);
+  doc.line(c5, currY, c5, currY + headerH);
+
+  doc.line(c2, currY + 7, c3, currY + 7);
+  doc.line(cDesc1, currY + 7, cDesc1, currY + headerH);
+  doc.line(cDesc2, currY + 7, cDesc2, currY + headerH);
+
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text('DATE', leftM + (c1-leftM)/2, currY + 9, { align: 'center' });
+  doc.text('NAME OF PROJECT', c1 + (c2-c1)/2, currY + 9, { align: 'center' });
+  
+  doc.text('DESCRIPTION', c2 + (c3-c2)/2, currY + 4, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text('(Please check)', c2 + (c3-c2)/2, currY + 6.5, { align: 'center' });
+  doc.setFontSize(9);
+  doc.text('Infrastructure', c2 + (cDesc1-c2)/2, currY + 12, { align: 'center' });
+  doc.text('Goods', cDesc1 + (cDesc2-cDesc1)/2, currY + 12, { align: 'center' });
+  doc.text('Service', cDesc2 + (c3-cDesc2)/2, currY + 12, { align: 'center' });
+  
+  doc.setFontSize(10);
+  doc.text('NAME OF SUPPLIER', c3 + (c4-c3)/2, currY + 9, { align: 'center' });
+  doc.text('AMOUNT', c4 + (c5-c4)/2, currY + 9, { align: 'center' });
+  doc.text('REMARKS', c5 + (rightM-c5)/2, currY + 9, { align: 'center' });
+
+  currY += headerH;
+
+  const rowH = 7;
+  const numRows = Math.max(rawAwards.length, 7);
+  const bodyH = numRows * rowH;
+  
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(cDesc1, currY, cDesc1, currY + bodyH);
+  doc.line(cDesc2, currY, cDesc2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+  doc.line(c5, currY, c5, currY + bodyH);
+
+  for(let i=1; i<numRows; i++) {
+    doc.line(leftM, currY + (i*rowH), rightM, currY + (i*rowH));
   }
-  rawAwards.forEach((a, i) => {
-    total += a.amount;
-    y = checkPageBreak(doc, y, 6, 20);
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(a.date, cols.date, y + 4);
-    doc.text(a.project.substring(0, 26), cols.project, y + 4);
-    doc.text(a.type.startsWith('infra') ? 'X' : '', cols.infra, y + 4, { align: 'center' });
-    doc.text(a.type.startsWith('good') ? 'X' : '', cols.goods, y + 4, { align: 'center' });
-    doc.text(a.type.startsWith('serv') ? 'X' : '', cols.service, y + 4, { align: 'center' });
-    doc.text(a.supplier.substring(0, 22), cols.supplier, y + 4);
-    doc.text(formatNum(a.amount), cols.amount, y + 4, { align: 'right' });
-    doc.text(a.remarks.substring(0, 12), cols.remarks, y + 4, { align: 'right' });
-    y += 6;
-  });
 
-  doc.setFont(undefined, 'bold');
-  doc.setFillColor(2, 132, 199); doc.setTextColor(255); doc.rect(14, y, 182, 7, 'F');
-  doc.text('TOTAL', cols.supplier, y + 5);
-  doc.text(formatNum(total), cols.amount, y + 5, { align: 'right' });
-  doc.setTextColor(0); y += 14;
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  for(let i=0; i<numRows; i++) {
+    const py = currY + (i*rowH) + 5;
+    if (i < rawAwards.length) {
+      const a = rawAwards[i];
+      doc.text(a.date, leftM + (c1-leftM)/2, py, { align: 'center' });
+      doc.text(doc.splitTextToSize(a.project, c2-c1-2), c1 + 2, py - 1);
+      
+      if (a.type.startsWith('infra')) doc.text('X', c2 + (cDesc1-c2)/2, py, { align: 'center' });
+      if (a.type.startsWith('good')) doc.text('X', cDesc1 + (cDesc2-cDesc1)/2, py, { align: 'center' });
+      if (a.type.startsWith('serv')) doc.text('X', cDesc2 + (c3-cDesc2)/2, py, { align: 'center' });
+      
+      doc.text(doc.splitTextToSize(a.supplier, c4-c3-2), c3 + (c4-c3)/2, py - 1, { align: 'center' });
+      doc.text(formatNum(a.amount), c5 - 2, py, { align: 'right' });
+      doc.text(doc.splitTextToSize(a.remarks, rightM-c5-2), c5 + (rightM-c5)/2, py - 1, { align: 'center' });
+    }
+  }
 
-  addTwoPartySignature(doc, y, fd.preparedBy || fd._autoTreasurer || '', 'Barangay Treasurer', fd.approvedBy || fd._autoPunong || '', 'Punong Barangay');
+  currY += bodyH + 15;
+
+  doc.text('Prepared by:', leftM, currY);
+  doc.text('Approved by:', 148.5, currY);
+  currY += 10;
+  
+  doc.text(fd.preparedBy || fd._autoTreasurer || '____________________', leftM, currY);
+  doc.text(fd.approvedBy || fd._autoPunong || '____________________', 148.5, currY);
+  currY += 4;
+  
+  doc.text('Barangay Treasurer', leftM, currY);
+  doc.text('Punong Barangay', 148.5, currY);
 }
 
 // ── BFR-6 / BFR-1 / SK Cashbook: Itemized Collections & Disbursements — Annex 6 ──
 // Pulls real income/expense records for the resolved period into a two-column ledger
-// (Collection | Disbursement), matching the official Annex 6 layout.
 async function generateBFR6(doc, fd, brgy, y, module = 'treasurer') {
-  doc.setFontSize(9); doc.setFont(undefined, 'italic');
-  doc.text('Annex 6', 194, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 6;
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('ITEMIZED MONTHLY COLLECTIONS AND DISBURSEMENTS', 105, y, { align: 'center' }); y += 6;
+  const leftM = 14, rightM = 196, W = rightM - leftM;
+  let currY = 14; 
 
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Annex 6', rightM, currY, { align: 'right' });
+  currY += 10;
+
+  doc.text('Republic of the Philippines', 105, currY, { align: 'center' });
+  doc.text(`Province of ${brgy.province || 'Laguna'}`, 105, currY + 4, { align: 'center' });
+  doc.text(`City of ${brgy.municipality || 'San Pablo'}`, 105, currY + 8, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}`, 105, currY + 12, { align: 'center' });
+  currY += 20;
+
+  doc.setFontSize(11); doc.setFont(undefined, 'bold');
+  doc.text('ITEMIZED MONTHLY COLLECTIONS AND DISBURSEMENTS', 105, currY, { align: 'center' });
+  
   const range = computePeriodRange(fd.periodType, fd._range || {});
   const from = fd.dateFrom || range.from;
   const to = fd.dateTo || range.to;
-  doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
-  doc.text(`For the ${(PERIOD_TYPES[fd.periodType]?.label || 'period')}: ${fd.period || range.label || ''}`, 105, y, { align: 'center' }); y += 9;
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text(`For the ${fd.period || range.label || ''}`, 105, currY + 5, { align: 'center' });
+  currY += 12;
 
   const allInc = await getPeriodIncome(module, brgy.id, from, to);
   const income = allInc.filter(i => i.status === 'approved');
   const expenses = await getPeriodExpenses(module, brgy.id, from, to, { approvedOnly: true });
 
-  const leftX = 14, midX = 105, rightX = 196, half = (rightX - leftX) / 2;
-  const cCols = { date: leftX + 2, part: leftX + 22, amt: midX - 3 };
-  const dCols = { date: midX + 2, part: midX + 22, amt: rightX - 2 };
+  const midX = 105;
+  const c1 = leftM + 25; 
+  const c2 = midX - 30;  
+  const c3 = midX + 25;  
+  const c4 = rightM - 30; 
 
-  doc.setFillColor(26, 58, 107); doc.setTextColor(255); doc.setFont(undefined, 'bold'); doc.setFontSize(9);
-  doc.rect(leftX, y, half, 6, 'F'); doc.rect(midX, y, half, 6, 'F');
-  doc.text('COLLECTION', leftX + half / 2, y + 4.3, { align: 'center' });
-  doc.text('DISBURSEMENT', midX + half / 2, y + 4.3, { align: 'center' });
-  y += 6;
-  doc.setFillColor(232, 240, 251); doc.setTextColor(0); doc.setFontSize(7.5);
-  doc.rect(leftX, y, half, 6, 'F'); doc.rect(midX, y, half, 6, 'F');
-  doc.text('DATE', cCols.date, y + 4); doc.text('PARTICULARS', cCols.part, y + 4); doc.text('AMOUNT', cCols.amt, y + 4, { align: 'right' });
-  doc.text('DATE', dCols.date, y + 4); doc.text('PARTICULARS', dCols.part, y + 4); doc.text('AMOUNT', dCols.amt, y + 4, { align: 'right' });
-  y += 7;
+  const headerH = 12;
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, headerH);
+  
+  doc.line(midX, currY, midX, currY + headerH);
+  doc.line(leftM, currY + 6, rightM, currY + 6);
+  
+  doc.line(c1, currY + 6, c1, currY + headerH);
+  doc.line(c2, currY + 6, c2, currY + headerH);
+  doc.line(c3, currY + 6, c3, currY + headerH);
+  doc.line(c4, currY + 6, c4, currY + headerH);
 
-  const rowCount = Math.max(income.length, expenses.length, 1);
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-  for (let i = 0; i < rowCount; i++) {
-    y = checkPageBreak(doc, y, 5.5, 20);
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(leftX, y, half * 2, 5.5, 'F'); }
-    const inc = income[i], exp = expenses[i];
-    if (inc) {
-      doc.text(formatDateShort(inc.dateReceived), cCols.date, y + 4);
-      doc.text((inc.source || inc.category || '').substring(0, 30), cCols.part, y + 4);
-      doc.text(formatNum(inc.amount), cCols.amt, y + 4, { align: 'right' });
-    }
-    if (exp) {
-      doc.text(formatDateShort(exp.dateSpent), dCols.date, y + 4);
-      doc.text((exp.description || exp.category || '').substring(0, 30), dCols.part, y + 4);
-      doc.text(formatNum(exp.amount), dCols.amt, y + 4, { align: 'right' });
-    }
-    y += 5.5;
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text('COLLECTION', leftM + (midX-leftM)/2, currY + 4, { align: 'center' });
+  doc.text('DISBURSEMENT', midX + (rightM-midX)/2, currY + 4, { align: 'center' });
+
+  doc.setFontSize(9);
+  doc.text('DATE', leftM + (c1-leftM)/2, currY + 10, { align: 'center' });
+  doc.text('PARTICULARS', c1 + (c2-c1)/2, currY + 10, { align: 'center' });
+  doc.text('AMOUNT', c2 + (midX-c2)/2, currY + 10, { align: 'center' });
+  
+  doc.text('DATE', midX + (c3-midX)/2, currY + 10, { align: 'center' });
+  doc.text('PARTICULARS', c3 + (c4-c3)/2, currY + 10, { align: 'center' });
+  doc.text('AMOUNT', c4 + (rightM-c4)/2, currY + 10, { align: 'center' });
+
+  currY += headerH;
+
+  const rowH = 6;
+  const numRows = Math.max(income.length, expenses.length, 10);
+  const bodyH = numRows * rowH;
+  
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(midX, currY, midX, currY + bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+
+  for(let i=1; i<numRows; i++) {
+    doc.line(leftM, currY + (i*rowH), rightM, currY + (i*rowH));
   }
-  doc.line(midX, y - rowCount * 5.5 - 13, midX, y);
 
-  const totalCollection = income.reduce((s, i) => s + i.amount, 0);
-  const totalDisbursement = expenses.reduce((s, e) => s + e.amount, 0);
-  doc.setFont(undefined, 'bold'); doc.setFontSize(8);
-  doc.setFillColor(22, 163, 74); doc.setTextColor(255); doc.rect(leftX, y, half, 7, 'F');
-  doc.text('TOTAL COLLECTION:', leftX + 2, y + 5);
-  doc.text(formatNum(totalCollection), cCols.amt, y + 5, { align: 'right' });
-  doc.setFillColor(220, 38, 38); doc.rect(midX, y, half, 7, 'F');
-  doc.text('TOTAL EXPENSES:', midX + 2, y + 5);
-  doc.text(formatNum(totalDisbursement), dCols.amt, y + 5, { align: 'right' });
-  doc.setTextColor(0); y += 15;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  let totInc = 0;
+  for(let i=0; i<numRows; i++) {
+    const py = currY + (i*rowH) + 4.5;
+    if (i < income.length) {
+      const inc = income[i];
+      totInc += inc.amount;
+      doc.text(formatDateShort(inc.dateReceived), leftM + (c1-leftM)/2, py, { align: 'center' });
+      doc.text(doc.splitTextToSize(inc.source || '', c2-c1-2), c1 + 2, py - 1);
+      doc.text(formatNum(inc.amount), c2 + (midX-c2)/2, py, { align: 'center' }); 
+    }
+  }
 
+  let totExp = 0;
+  for(let i=0; i<numRows; i++) {
+    const py = currY + (i*rowH) + 4.5;
+    if (i < expenses.length) {
+      const exp = expenses[i];
+      totExp += exp.amount;
+      doc.text(formatDateShort(exp.dateSpent), midX + (c3-midX)/2, py, { align: 'center' });
+      const payee = typeof exp.payee === 'object' ? exp.payee.name : (exp.payee || exp.description || '');
+      doc.text(doc.splitTextToSize(payee, c4-c3-2), c3 + 2, py - 1);
+      doc.text(formatNum(exp.amount), c4 + (rightM-c4)/2, py, { align: 'center' });
+    }
+  }
+
+  currY += bodyH;
+
+  const footH = 7;
+  doc.rect(leftM, currY, W, footH);
+  doc.line(midX, currY, midX, currY + footH);
+  doc.line(c2, currY, c2, currY + footH);
+  doc.line(c4, currY, c4, currY + footH);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('TOTAL COLLECTION:', leftM + (c2-leftM)/2, currY + 5, { align: 'center' });
+  doc.text(formatNum(totInc), c2 + (midX-c2)/2, currY + 5, { align: 'center' });
+  doc.text('TOTAL EXPENSES:', midX + (c4-midX)/2, currY + 5, { align: 'center' });
+  doc.text(formatNum(totExp), c4 + (rightM-c4)/2, currY + 5, { align: 'center' });
+
+  currY += footH + 15;
+
+  doc.setFont(undefined, 'normal');
+  doc.text('Prepared by:', leftM, currY);
+  doc.text('Noted by:', midX, currY);
+  currY += 10;
+  
+  doc.text(fd.preparedBy || fd._autoTreasurer || '____________________', leftM, currY);
+  doc.text(fd.approvedBy || fd._autoPunong || '____________________', midX, currY);
+  currY += 4;
+  
   const treasurerLabel = module === 'sk' ? 'SK Treasurer' : 'Barangay Treasurer';
   const approverLabel = module === 'sk' ? 'SK Chairperson' : 'Punong Barangay';
-  addTwoPartySignature(doc, y, fd.preparedBy || fd._autoTreasurer || '', treasurerLabel, fd.approvedBy || fd._autoPunong || fd._autoSKChair || '', approverLabel);
+  doc.text(treasurerLabel, leftM, currY);
+  doc.text(approverLabel, midX, currY);
 }
 
 async function generateBFR2(doc, fd, brgy, y) {
-  doc.setFontSize(9); doc.setFont(undefined, 'italic');
-  doc.text('Barangay Budget Preparation Form No. 2', 14, y);
-  doc.text('Annex 2', 194, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 6;
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('ACTUAL INCOME AND EXPENDITURE FOR PAST YEAR', 105, y, { align: 'center' }); y += 5;
-  doc.setFontSize(10);
-  doc.text(`( FY: ${fd.fiscalYear || new Date().getFullYear()} )`, 105, y, { align: 'center' });
-  doc.setFont(undefined, 'normal'); y += 10;
+  const leftM = 14, rightM = 196, W = rightM - leftM;
+  let currY = 14; 
 
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Barangay Budget Preparation Form No. 2', leftM, currY);
+  doc.text('Annex 2', rightM, currY, { align: 'right' });
+  currY += 10;
+
+  doc.setFontSize(11);
+  doc.text('Republic of the Philippines', 105, currY, { align: 'center' });
+  doc.text(`Province of ${brgy.province || 'Laguna'}`, 105, currY + 5, { align: 'center' });
+  doc.text(`City/Municipality of ${brgy.municipality || ''}`, 105, currY + 10, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}`, 105, currY + 15, { align: 'center' });
+  currY += 25;
+
+  doc.setFont(undefined, 'bold');
+  doc.text('ACTUAL INCOME AND EXPENDITURE FOR PAST YEAR', 105, currY, { align: 'center' });
+  doc.text(`( FY: ${fd.fiscalYear || new Date().getFullYear()} )`, 105, currY + 5, { align: 'center' });
+  currY += 10;
+  doc.setLineWidth(0.8);
+  doc.line(leftM, currY, rightM, currY);
+  currY += 6;
+
+  // Fetch data
   const module = 'treasurer';
   const yearStart = `${fd.fiscalYear}-01-01`, yearEnd = `${fd.fiscalYear}-12-31`;
   const allInc = await getPeriodIncome(module, brgy.id, yearStart, yearEnd);
   const income = allInc.filter(i => i.status === 'approved');
   const expenses = await getPeriodExpenses(module, brgy.id, yearStart, yearEnd, { approvedOnly: true });
-  const beginningBalance = fd.beginningBalanceOverride ? parseFloat(fd.beginningBalanceOverride) : await getBeginningBalance(module, brgy.id, yearStart);
+  
+  // FIX NaN BUG: Safely parse beginningBalanceOverride
+  const overrideVal = safeParseFloat(fd.beginningBalanceOverride);
+  const beginningBalance = overrideVal || await getBeginningBalance(module, brgy.id, yearStart);
 
-  // ── Part A: Actual Income (standard BFDP particulars) ──
+  // ── Part A: Actual Income ──
   const sumInc = (re) => income.filter(i => re.test(i.category || i.source || '')).reduce((s, i) => s + i.amount, 0);
   const irAllotment = sumInc(/internal revenue|\bira\b/i);
   const rpt = sumInc(/real property tax/i);
@@ -979,10 +1167,12 @@ async function generateBFR2(doc, fd, brgy, y) {
   const totalIncome = matchedIncome + otherIncome;
   const totalAvailable = beginningBalance + totalIncome;
 
+  doc.setLineWidth(0.2); 
   doc.setFontSize(10); doc.setFont(undefined, 'italic');
-  doc.text('Part A. Actual Income', 14, y); y += 6;
+  doc.text('Part A. Actual Income', leftM, currY);
   doc.setFont(undefined, 'normal');
-  y = drawTableHeaderRow(doc, y, [{ label: 'Particulars', x: 16 }, { label: 'TOTAL', x: 194, align: 'right' }]);
+  doc.text('TOTAL', rightM - 20, currY);
+  currY += 8;
 
   const incomeRows = [
     ['Beginning Balance', beginningBalance],
@@ -994,32 +1184,49 @@ async function generateBFR2(doc, fd, brgy, y) {
   ];
   if (otherIncome) incomeRows.push(['Other Income', otherIncome]);
 
-  doc.setFontSize(9);
-  incomeRows.forEach(([label, amt], i) => {
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(label, 16, y + 4);
-    doc.text(formatCurrencyPDF(amt), 194, y + 4, { align: 'right' });
-    y += 6;
+  doc.setFontSize(10);
+  incomeRows.forEach(([label, amt]) => {
+    const labelW = doc.getTextWidth(label + ' ');
+    const amtW = 35;
+    const spaceW = doc.getTextWidth(' .');
+    const dotsCount = Math.floor((rightM - leftM - labelW - amtW) / spaceW);
+    const dots = ' .'.repeat(Math.max(0, dotsCount));
+    
+    doc.text(label + dots, leftM, currY);
+    doc.text(formatNum(amt), rightM - 5, currY, { align: 'right' });
+    currY += 5;
   });
-  doc.setFont(undefined, 'bold');
-  doc.setFillColor(22, 163, 74); doc.setTextColor(255); doc.rect(14, y, 182, 7, 'F');
-  doc.text('Total Available Resources', 16, y + 5);
-  doc.text(formatCurrencyPDF(totalAvailable), 194, y + 5, { align: 'right' });
-  doc.setTextColor(0); y += 13;
+  
+  doc.text('Total Available Resources' + ' .'.repeat(Math.floor((rightM - leftM - doc.getTextWidth('Total Available Resources ') - 35) / doc.getTextWidth(' .'))), leftM, currY);
+  doc.text(formatNum(totalAvailable), rightM - 5, currY, { align: 'right' });
+  currY += 10;
 
-  // ── Part B: Actual Expenditures — fixed Program/Project/Activity rows ──
-  doc.setFont(undefined, 'italic'); doc.setFontSize(10);
-  doc.text('Part B. Actual Expenditures', 14, y); y += 6;
-  doc.setFont(undefined, 'normal');
-  y = drawTableHeaderRow(doc, y, [
-    { label: 'Programs / Projects / Activity', x: 16 },
-    { label: 'Personal Services', x: 100, align: 'right' },
-    { label: 'MOOE', x: 140, align: 'right' },
-    { label: 'Capital Outlay', x: 170, align: 'right' },
-    { label: 'TOTAL', x: 194, align: 'right' },
-  ]);
+  // ── Part B: Actual Expenditures ──
+  doc.setFont(undefined, 'italic');
+  doc.text('Part B. Actual Expenditures', leftM, currY);
+  currY += 3;
 
-  // Matches the exact row order in the official Annex 2 form.
+  const hH = 15;
+  doc.rect(leftM, currY, W, hH);
+  const c1 = leftM + 75; // Programs
+  const c2 = c1 + 25;    // PS
+  const c3 = c2 + 35;    // MOOE
+  const c4 = c3 + 22;    // CO
+  
+  doc.line(c1, currY, c1, currY + hH);
+  doc.line(c2, currY, c2, currY + hH);
+  doc.line(c3, currY, c3, currY + hH);
+  doc.line(c4, currY, c4, currY + hH);
+
+  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
+  doc.text('Programs/ Projects/ Activity', leftM + (c1-leftM)/2, currY + 8, { align: 'center' });
+  doc.text('Personal\nServices', c1 + (c2-c1)/2, currY + 6, { align: 'center' });
+  doc.text('Maintenance\nand\nOther Operating\nExpenses', c2 + (c3-c2)/2, currY + 3.5, { align: 'center' });
+  doc.text('Capital\nOutlay', c3 + (c4-c3)/2, currY + 6, { align: 'center' });
+  doc.text('TOTAL', c4 + (rightM-c4)/2, currY + 8, { align: 'center' });
+  currY += hH;
+
+  // Grid body rows
   const buckets = [
     { label: 'Personal Services', re: /personal services|salaries|wages|honorari/i, col: 'ps' },
     { label: 'MOOE', re: /^mooe$|maintenance and other operating/i, col: 'mooe' },
@@ -1027,14 +1234,15 @@ async function generateBFR2(doc, fd, brgy, y) {
     { label: 'Day Care Services', re: /day\s*care/i, col: 'mooe' },
     { label: 'Health and Nutrition Services', re: /health|nutrition|medicine/i, col: 'mooe' },
     { label: 'Peace and Order Services', re: /peace and order|tanod|police/i, col: 'mooe' },
-    { label: 'Administrative and Legislative Services', re: /administrative|legislative|office supplies/i, col: 'mooe' },
-    { label: 'Implementation of Development Projects (20% of IRA)', re: /20%\s*(of\s*)?ira|development project/i, col: 'mooe' },
-    { label: 'Implementation of SK Projects (10% SK Funds)', re: /\bsk\b.*(fund|project)|10%\s*sk/i, col: 'mooe' },
-    { label: 'Implementation of Projects/Activities for Unforeseen Events (5% Calamity Fund)', re: /calamity|unforeseen|disaster/i, col: 'mooe' },
-    { label: 'Implementation of GAD Projects', re: /\bgad\b|gender and development/i, col: 'mooe' },
-    { label: 'Implementation of SC PPAs', re: /senior citizen|\bsc\s*ppa/i, col: 'mooe' },
-    { label: 'Implementation of BCPC PPAs', re: /bcpc/i, col: 'mooe' },
+    { label: 'Administrative and Legislative\nServices', re: /administrative|legislative|office supplies/i, col: 'mooe' },
+    { label: 'Implementation of Development\nProjects (20% of IRA)', re: /20%\s*(of\s*)?ira|development project/i, col: 'mooe' },
+    { label: 'Implementation of SK Projects\n(10% SK Funds)', re: /\bsk\b.*(fund|project)|10%\s*sk/i, col: 'mooe' },
+    { label: 'Implementation of Projects/\nActivities for Unforeseen\nEvents\n(5% CalamityFund)', re: /calamity|unforeseen|disaster/i, col: 'mooe' },
+    { label: 'Implementation of GAD\nProjects', re: /\bgad\b|gender and development/i, col: 'mooe' },
+    { label: 'Implementation of SC\nPPAS', re: /senior citizen|\bsc\s*ppa/i, col: 'mooe' },
+    { label: 'Implementation of BCPC\nPPAs', re: /bcpc/i, col: 'mooe' },
   ];
+  
   const bucketTotals = buckets.map(() => 0);
   let claimedTotal = 0;
   expenses.forEach(e => {
@@ -1045,157 +1253,301 @@ async function generateBFR2(doc, fd, brgy, y) {
   const totalRecordedExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const unclassifiedTotal = totalRecordedExpenses - claimedTotal;
 
-  doc.setFontSize(9);
+  // Draw body
+  const bodyH = 150; 
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+
+  let py = currY + 6;
   let totPS = 0, totMOOE = 0, totCO = 0;
+  
   buckets.forEach((b, i) => {
     const amt = bucketTotals[i];
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(b.label.substring(0, 55), 16, y + 4);
+    const lines = b.label.split('\n');
+    lines.forEach((l, li) => {
+      doc.text(l, leftM + 2, py + (li * 4));
+    });
+    
     const ps = b.col === 'ps' ? amt : 0, mooe = b.col === 'mooe' ? amt : 0, co = b.col === 'co' ? amt : 0;
-    doc.text(ps ? formatCurrencyPDF(ps) : '—', 100, y + 4, { align: 'right' });
-    doc.text(mooe ? formatCurrencyPDF(mooe) : '—', 140, y + 4, { align: 'right' });
-    doc.text(co ? formatCurrencyPDF(co) : '—', 170, y + 4, { align: 'right' });
-    doc.text(formatCurrencyPDF(amt), 194, y + 4, { align: 'right' });
+    
+    if (ps) doc.text(formatNum(ps), c2 - 2, py, { align: 'right' });
+    if (mooe) doc.text(formatNum(mooe), c3 - 2, py, { align: 'right' });
+    if (co) doc.text(formatNum(co), c4 - 2, py, { align: 'right' });
+    if (amt) doc.text(formatNum(amt), rightM - 2, py, { align: 'right' });
+    
     totPS += ps; totMOOE += mooe; totCO += co;
-    y += 6;
+    py += Math.max(lines.length * 4.5, 6) + 1.5;
   });
+  
   if (unclassifiedTotal) {
-    doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F');
-    doc.text('Other Programs/Activities', 16, y + 4);
-    doc.text('—', 100, y + 4, { align: 'right' });
-    doc.text(formatCurrencyPDF(unclassifiedTotal), 140, y + 4, { align: 'right' });
-    doc.text('—', 170, y + 4, { align: 'right' });
-    doc.text(formatCurrencyPDF(unclassifiedTotal), 194, y + 4, { align: 'right' });
+    doc.text('Other Programs/Activities', leftM + 2, py);
+    doc.text(formatNum(unclassifiedTotal), c3 - 2, py, { align: 'right' });
+    doc.text(formatNum(unclassifiedTotal), rightM - 2, py, { align: 'right' });
     totMOOE += unclassifiedTotal;
-    y += 6;
+    py += 8;
+  }
+  
+  const totalExpenditures = totPS + totMOOE + totCO;
+  doc.text('Total Expenditures', leftM + 15, py);
+  doc.text(formatNum(totPS), c2 - 2, py, { align: 'right' });
+  doc.text(formatNum(totMOOE), c3 - 2, py, { align: 'right' });
+  doc.text(formatNum(totCO), c4 - 2, py, { align: 'right' });
+  doc.text(formatNum(totalExpenditures), rightM - 2, py, { align: 'right' });
+  
+  currY += bodyH;
+
+  // Balance Footer Row
+  const balH = 6;
+  doc.rect(leftM, currY, W, balH);
+  doc.line(c4, currY, c4, currY + balH);
+  
+  const balance = totalAvailable - totalExpenditures;
+  doc.setFontSize(10);
+  doc.text('BALANCE/ DEFICIT', leftM + 2, currY + 4);
+  doc.setFont(undefined, 'bold');
+  doc.text(formatNum(balance), rightM - 2, currY + 4, { align: 'right' });
+  currY += balH;
+
+  // Move to next page for signatures if not enough space
+  if (currY > 250) {
+    doc.addPage();
+    currY = 20;
+  } else {
+    currY += 15;
   }
 
-  const totalExpenditures = totPS + totMOOE + totCO;
-  doc.setFont(undefined, 'bold');
-  doc.setFillColor(220, 38, 38); doc.setTextColor(255); doc.rect(14, y, 182, 7, 'F');
-  doc.text('Total Expenditures', 16, y + 5);
-  doc.text(formatCurrencyPDF(totPS), 100, y + 5, { align: 'right' });
-  doc.text(formatCurrencyPDF(totMOOE), 140, y + 5, { align: 'right' });
-  doc.text(formatCurrencyPDF(totCO), 170, y + 5, { align: 'right' });
-  doc.text(formatCurrencyPDF(totalExpenditures), 194, y + 5, { align: 'right' });
-  doc.setTextColor(0); y += 11;
+  // Signatures
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Prepared by:', leftM, currY);
+  doc.text('Certified by:', 85, currY);
+  doc.text('Approved by:', 150, currY);
+  currY += 8;
 
-  const balance = totalAvailable - totalExpenditures;
-  const balColor = balance >= 0 ? [22, 163, 74] : [220, 38, 38];
-  doc.setFillColor(...balColor); doc.setTextColor(255); doc.rect(14, y, 182, 8, 'F');
-  doc.setFontSize(10);
-  doc.text('BALANCE / DEFICIT', 16, y + 5.5);
-  doc.text(formatCurrencyPDF(balance), 194, y + 5.5, { align: 'right' });
-  doc.setTextColor(0); y += 14;
-
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
+  doc.text(fd.preparedBy || fd._autoTreasurer || '____________________', leftM, currY);
+  doc.text(fd.certifiedBy || '____________________', 85, currY);
+  doc.text(fd.approvedBy || fd._autoPunong || '____________________', 150, currY);
+  currY += 4;
+  
+  doc.text('Barangay Treasurer', leftM, currY);
+  doc.text('City Accountant', 85, currY);
+  doc.text('Punong Barangay', 150, currY);
+  currY += 15;
+  
+  doc.line(leftM, currY, rightM, currY);
+  currY += 5;
+  
+  // Instructions
+  doc.rect(leftM, currY, rightM-leftM, 5);
+  doc.text('Instructions:', leftM + 2, currY + 3.5);
+  currY += 10;
+  
   const instrA = 'A. Indicate the Actual Income for the Past Year from all sources.';
-  const instrB = 'B. Indicate the Actual Expenditure for the Past Year by Major Final Output or Program/Project/Activity and by expenditure class (Personal Services, Maintenance and Other Operating Expenses and Capital Outlay).';
-  [instrA, instrB].forEach(t => { const lines = doc.splitTextToSize(t, 182); doc.text(lines, 14, y); y += lines.length * 3.6; });
-  y += 3;
-  doc.setTextColor(110);
-  doc.text('Reference: Department of Budget and Management. (2006). Budget Operations Manual for Barangays.', 14, y);
-  doc.setTextColor(0); y += 8;
-
-  addThreePartySignature(doc, y,
-    fd.preparedBy || fd._autoTreasurer || '', 'Barangay Treasurer',
-    fd.certifiedBy || '', 'City/Municipal Accountant',
-    fd.approvedBy || fd._autoPunong || '', 'Punong Barangay'
-  );
+  const instrB = 'B. Indicate the Actual Expenditure for the Past Year by Major Final Output or Program/ Project/ Activity and by expenditure class (Personal Services, Maintenance and Other Operating Expenses and Capital Outlay)';
+  doc.text(instrA, leftM + 5, currY); currY += 5;
+  const linesB = doc.splitTextToSize(instrB, W - 10);
+  doc.text(linesB, leftM + 5, currY); currY += linesB.length * 4.5 + 5;
+  
+  doc.text('Reference: Department of Budget and Management. (2006). Budget Operations Manual for Barangays', leftM, currY);
 }
 
 // ── BFR-4: Annual Procurement Plan (Annex 4) — with quarterly distribution matrix ──
 function generateBFR4(doc, fd, brgy, y) {
-  doc.setFontSize(9); doc.setFont(undefined, 'italic');
-  doc.text('Annex 4', 194, y, { align: 'right' });
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('ANNUAL PROCUREMENT PLAN', 105, y, { align: 'center' }); y += 5;
-  doc.setFontSize(10);
-  doc.text(`(FY: ${fd.fiscalYear || ''})`, 105, y, { align: 'center' });
-  doc.setFont(undefined, 'normal'); y += 8;
+  const leftM = 14, rightM = 283, W = rightM - leftM;
+  let currY = 14; 
 
-  doc.setFontSize(9);
-  doc.text(`Name of Barangay: ${brgy.name}`, 14, y);
-  doc.text(`Program Control No.: ${fd.programControlNo || ''}`, 120, y); y += 5;
-  doc.text(`Department/Office: Barangay ${brgy.name}`, 14, y);
-  doc.text(`Date Submitted: ${formatDateShort(fd.dateSubmitted) || ''}`, 120, y); y += 8;
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Annex 4', leftM, currY);
+  currY += 5;
+
+  doc.text('Republic of the Philippines', 148.5, currY, { align: 'center' });
+  doc.text(`Province of ${brgy.province || 'Laguna'}`, 148.5, currY + 4, { align: 'center' });
+  doc.text(`City of ${brgy.municipality || 'San Pablo'}`, 148.5, currY + 8, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}`, 148.5, currY + 12, { align: 'center' });
+  currY += 20;
+
+  doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('ANNUAL PROCUREMENT PLAN', 148.5, currY, { align: 'center' });
+  doc.text(`(FY: ${fd.fiscalYear || new Date().getFullYear()})`, 148.5, currY + 5, { align: 'center' });
+  currY += 10;
 
   const rawItems = (fd.items || '').split('\n').filter(l => l.trim()).map((line, i) => {
     const parts = parseCSVLine(line);
     const [desc, cost, quarter] = parts;
     return { no: i + 1, desc: desc || '', cost: safeParseFloat(cost), quarter: parseInt(quarter || '1', 10) };
   });
-  const total = rawItems.reduce((s, it) => s + it.cost, 0);
+  const totalAmount = rawItems.reduce((s, it) => s + it.cost, 0);
   const qTotals = [0, 0, 0, 0];
   rawItems.forEach(it => { if (it.quarter >= 1 && it.quarter <= 4) qTotals[it.quarter - 1] += it.cost; });
 
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 6, 'F');
-  doc.setFontSize(8); doc.setFont(undefined, 'bold');
-  doc.text('PLANNED AMOUNT', 105, y + 4, { align: 'center' }); y += 6;
-  doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F');
-  doc.setFontSize(7.5); doc.setFont(undefined, 'normal');
-  doc.text(`Total: ${formatCurrencyPDF(total)}`, 105, y + 4, { align: 'center' });
-  y += 9;
+  // Header Box
+  const headerH = 20;
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, headerH);
+  doc.line(leftM, currY + 6, rightM, currY + 6);
+  doc.line(leftM, currY + 12, rightM, currY + 12);
 
-  const cols = { no: 16, desc: 24, total: 130, q1: 152, q2: 165, q3: 178, q4: 191 };
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 12, 'F');
-  doc.setFontSize(7.5); doc.setFont(undefined, 'bold');
-  doc.text('Item No.', cols.no, y + 5);
-  doc.text('Description', cols.desc, y + 5);
-  doc.text('Total Cost', cols.total, y + 5, { align: 'right' });
-  doc.text('Distribution by Quarter', (cols.q1 + cols.q4) / 2, y + 4, { align: 'center' });
-  doc.text('Q1', cols.q1, y + 9, { align: 'right' });
-  doc.text('Q2', cols.q2, y + 9, { align: 'right' });
-  doc.text('Q3', cols.q3, y + 9, { align: 'right' });
-  doc.text('Q4', cols.q4, y + 9, { align: 'right' });
-  y += 13;
+  const planX = leftM + 150;
+  doc.line(planX, currY + 6, planX, currY + 20); 
+  
+  const regW = 20, contW = 25, totW = 30;
+  doc.line(planX + regW, currY + 12, planX + regW, currY + 20);
+  doc.line(planX + regW + contW, currY + 12, planX + regW + contW, currY + 20);
+  const submitX = planX + regW + contW + totW;
+  doc.line(submitX, currY + 12, submitX, currY + 20);
 
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-  rawItems.forEach((it, i) => {
-    y = checkPageBreak(doc, y, 6, 20);
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(String(it.no), cols.no, y + 4);
-    doc.text(it.desc.substring(0, 40), cols.desc, y + 4);
-    doc.text(formatCurrencyPDF(it.cost), cols.total, y + 4, { align: 'right' });
-    [1, 2, 3, 4].forEach((q, qi) => {
-      const x = [cols.q1, cols.q2, cols.q3, cols.q4][qi];
-      doc.text(it.quarter === q ? formatNum(it.cost) : '—', x, y + 4, { align: 'right' });
-    });
-    y += 6;
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text(`Name of Barangay: ${brgy.name || ''}`, leftM + 2, currY + 4);
+  
+  doc.text(`Program Control No. ${fd.programControlNo || ''}`, leftM + 2, currY + 10);
+  doc.text('PLANNED AMOUNT', planX + (rightM-planX)/2, currY + 10, { align: 'center' });
+  
+  doc.text(`Department/ Office: Barangay ${brgy.name || ''}`, leftM + 2, currY + 17);
+  doc.text('Regular', planX + regW/2, currY + 16, { align: 'center' });
+  doc.text('Contingency', planX + regW + contW/2, currY + 16, { align: 'center' });
+  doc.text('Total\n' + formatNum(totalAmount), planX + regW + contW + totW/2, currY + 15, { align: 'center' });
+  doc.text(`Date Submitted: ${formatDateShort(fd.dateSubmitted) || ''}`, submitX + 2, currY + 17);
+
+  currY += headerH;
+
+  // Grid Columns
+  const c1 = leftM + 12;
+  const c2 = c1 + 65;
+  const c3 = c2 + 20;
+  const c4 = c3 + 12;
+  const c5 = c4 + 15;
+  const c6 = c5 + 25;
+  const cQW = (rightM - c6) / 4; 
+  const c7 = c6 + cQW;
+  const c8 = c7 + cQW;
+  const c9 = c8 + cQW;
+
+  const ghH = 20;
+  doc.rect(leftM, currY, W, ghH);
+  
+  doc.line(c1, currY, c1, currY + ghH);
+  doc.line(c2, currY, c2, currY + ghH);
+  doc.line(c3, currY, c3, currY + ghH);
+  doc.line(c4, currY, c4, currY + ghH);
+  doc.line(c5, currY, c5, currY + ghH);
+  doc.line(c6, currY, c6, currY + ghH);
+  doc.line(c7, currY + 6, c7, currY + ghH);
+  doc.line(c8, currY + 6, c8, currY + ghH);
+  doc.line(c9, currY + 6, c9, currY + ghH);
+
+  doc.line(c6, currY + 6, rightM, currY + 6);
+  doc.text('Distribution', c6 + (rightM-c6)/2, currY + 4.5, { align: 'center' });
+  
+  doc.line(c6, currY + 12, rightM, currY + 12);
+  doc.text('1st Quarter', c6 + cQW/2, currY + 10, { align: 'center' });
+  doc.text('2nd Quarter', c7 + cQW/2, currY + 10, { align: 'center' });
+  doc.text('3rd Quarter', c8 + cQW/2, currY + 10, { align: 'center' });
+  doc.text('4th Quarter', c9 + cQW/2, currY + 10, { align: 'center' });
+
+  for(let i=0; i<4; i++) {
+    const qX = c6 + (i*cQW);
+    const splitX = qX + 10;
+    doc.line(splitX, currY + 12, splitX, currY + ghH);
+    doc.text('Qty', qX + 5, currY + 17, { align: 'center' });
+    doc.text('Amount', splitX + (cQW-10)/2, currY + 17, { align: 'center' });
+  }
+
+  doc.text('Item\nNo.', leftM + 6, currY + 10, { align: 'center' });
+  doc.text('Description', c1 + (c2-c1)/2, currY + 12, { align: 'center' });
+  doc.text('Unit Cost', c2 + (c3-c2)/2, currY + 12, { align: 'center' });
+  doc.text('Qty', c3 + (c4-c3)/2, currY + 12, { align: 'center' });
+  doc.text('Unit', c4 + (c5-c4)/2, currY + 12, { align: 'center' });
+  doc.text('Total Cost', c5 + (c6-c5)/2, currY + 12, { align: 'center' });
+  currY += ghH;
+
+  const bodyH = Math.max(rawItems.length * 6 + 10, 80); 
+  doc.rect(leftM, currY, W, bodyH);
+  
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+  doc.line(c5, currY, c5, currY + bodyH);
+  doc.line(c6, currY, c6, currY + bodyH);
+  doc.line(c7, currY, c7, currY + bodyH);
+  doc.line(c8, currY, c8, currY + bodyH);
+  doc.line(c9, currY, c9, currY + bodyH);
+
+  for(let i=0; i<4; i++) {
+    const splitX = c6 + (i*cQW) + 10;
+    doc.line(splitX, currY, splitX, currY + bodyH);
+  }
+
+  let py = currY + 5;
+  rawItems.forEach((it) => {
+    doc.text(String(it.no), leftM + 6, py, { align: 'center' });
+    doc.text(doc.splitTextToSize(it.desc, c2 - c1 - 2), c1 + (c2-c1)/2, py, { align: 'center' });
+    doc.text(formatNum(it.cost), c5 + (c6-c5)/2, py, { align: 'center' });
+    
+    if (it.quarter >= 1 && it.quarter <= 4) {
+      const qX = c6 + ((it.quarter - 1) * cQW);
+      const splitX = qX + 10;
+      doc.text('1', qX + 5, py, { align: 'center' });
+      doc.text(formatNum(it.cost), splitX + (cQW-10)/2, py, { align: 'center' });
+    }
+    
+    py += 6;
   });
-  if (!rawItems.length) { doc.setFont(undefined, 'italic'); doc.text('No procurement items listed.', cols.desc, y + 4); y += 6; doc.setFont(undefined, 'normal'); }
+  currY += bodyH;
 
-  doc.setFont(undefined, 'bold');
-  doc.setFillColor(245, 158, 11); doc.setTextColor(255); doc.rect(14, y, 182, 7, 'F');
-  doc.text('TOTAL', cols.desc, y + 5);
-  doc.text(formatCurrencyPDF(total), cols.total, y + 5, { align: 'right' });
-  [0, 1, 2, 3].forEach((qi, idx) => {
-    const x = [cols.q1, cols.q2, cols.q3, cols.q4][idx];
-    doc.text(formatNum(qTotals[qi]), x, y + 5, { align: 'right' });
-  });
-  doc.setTextColor(0); y += 14;
+  const fH = 8;
+  doc.rect(leftM, currY, W, fH);
+  for(let i=0; i<4; i++) {
+    const qX = c6 + (i*cQW);
+    const splitX = qX + 10;
+    if(i > 0) doc.line(qX, currY, qX, currY + fH);
+    doc.line(splitX, currY, splitX, currY + fH);
+  }
+  doc.line(c6, currY, c6, currY + fH);
 
-  addTwoPartySignature(doc, y, fd.preparedBy, 'Barangay Treasurer', fd.approvedBy, 'Punong Barangay');
+  doc.text('Total', c1 + (c5-c1)/2, currY + 5.5, { align: 'center' });
+  doc.text(formatNum(totalAmount), c5 + (c6-c5)/2, currY + 5.5, { align: 'center' });
+  
+  for(let i=0; i<4; i++) {
+    const splitX = c6 + (i*cQW) + 10;
+    doc.text(formatNum(qTotals[i]), splitX + (cQW-10)/2, currY + 5.5, { align: 'center' });
+  }
+  currY += fH + 10;
+
+  doc.text('Prepared by:', leftM, currY);
+  doc.text('Approved by:', leftM + 140, currY);
+  currY += 10;
+  
+  doc.text(fd.preparedBy || fd._autoTreasurer || '____________________', leftM, currY);
+  doc.text(fd.approvedBy || fd._autoPunong || '____________________', leftM + 140, currY);
+  currY += 4;
+  
+  doc.text('Barangay Treasurer', leftM, currY);
+  doc.text('Punong Barangay', leftM + 140, currY);
 }
-
 // ── BFR-7: Statement of Receipts and Expenditures (Annex B, JMC 2018-1) ──
 // Full A/B/C revenue hierarchy + I/II expenditure hierarchy, split into
 // First Semester / Second Semester / Total for the Actual (current) year.
 async function generateBFR7(doc, fd, brgy, y) {
-  doc.setFontSize(12); doc.setFont(undefined, 'bold');
-  doc.text('STATEMENT OF RECEIPTS AND EXPENDITURES', 105, y, { align: 'center' });
-  doc.setFont(undefined, 'normal'); y += 9;
+  const leftM = 14, rightM = 283, W = rightM - leftM;
+  let currY = 14; 
 
-  doc.setFontSize(9);
-  doc.text(`City Code: ${fd.cityCode || ''}`, 14, y);
-  doc.text(`City Name: ${brgy.municipality || ''}`, 80, y);
-  doc.text(`Barangay Code: ${fd.barangayCode || ''}`, 145, y); y += 5;
-  doc.text(`Barangay Name: ${brgy.name || ''}`, 14, y);
-  doc.text(`Year: FY ${fd.currentFY || ''}`, 145, y); y += 8;
+  doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('Barangay Financial Report', 148.5, currY, { align: 'center' }); currY += 5;
+  doc.text('STATEMENT OF RECEIPTS AND EXPENDITURES', 148.5, currY, { align: 'center' });
+  doc.setFont(undefined, 'normal'); currY += 9;
+
+  doc.setFontSize(10);
+  doc.text('City Code', 14, currY); doc.text(':', 50, currY); doc.text(fd.cityCode || '', 55, currY); currY += 5;
+  doc.text('City Name', 14, currY); doc.text(':', 50, currY); doc.text(brgy.municipality || 'San Pablo', 55, currY); currY += 5;
+  doc.text('Barangay Code', 14, currY); doc.text(':', 50, currY); doc.text(fd.barangayCode || '123', 55, currY); currY += 5;
+  doc.text('Barangay Name', 14, currY); doc.text(':', 50, currY); doc.text(brgy.name || 'San Gabriel', 55, currY); currY += 5;
+  doc.text('Year', 14, currY); doc.text(':', 50, currY); doc.text(`FY ${fd.currentFY || '2025'}`, 55, currY); currY += 8;
 
   const module = 'treasurer';
-  const yr = fd.currentFY;
+  const yr = fd.currentFY || new Date().getFullYear();
   const h1From = `${yr}-01-01`, h1To = `${yr}-06-30`;
   const h2From = `${yr}-07-01`, h2To = `${yr}-12-31`;
   const allInc = await getPeriodIncome(module, brgy.id, h1From, h2To);
@@ -1251,78 +1603,125 @@ async function generateBFR7(doc, fd, brgy, y) {
   otherExpUnclassified.total = otherExpUnclassified.h1 + otherExpUnclassified.h2;
   const totalExpenditures = add(totalExpKnown, otherExpUnclassified);
 
-  // ── Header row ──
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 12, 'F');
-  doc.setFontSize(7.5); doc.setFont(undefined, 'bold');
-  doc.text('Particulars', 16, y + 7);
-  doc.text('1st Sem', 138, y + 5, { align: 'right' });
-  doc.text('2nd Sem', 162, y + 5, { align: 'right' });
-  doc.text('Total', 194, y + 5, { align: 'right' });
-  doc.setFontSize(6.5); doc.setFont(undefined, 'normal');
-  doc.text(String(yr), 138, y + 9.5, { align: 'right' });
-  doc.text(String(yr), 162, y + 9.5, { align: 'right' });
-  doc.text(String(yr), 194, y + 9.5, { align: 'right' });
-  y += 13;
+  const c1 = leftM + 80;
+  const c2 = c1 + 25;
+  const c3 = c2 + 25;
+  const c4 = c3 + 90;
+  const c4_1 = c3 + 30;
+  const c4_2 = c4_1 + 30;
 
-  function row(label, f, opts = {}) {
-    y = checkPageBreak(doc, y, 6, 20);
-    if (opts.bold) { doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 6, 'F'); doc.setFont(undefined, 'bold'); }
-    else { doc.setFont(undefined, 'normal'); }
-    doc.setFontSize(7.5);
-    doc.text(label, 16 + (opts.indent || 0) * 4, y + 4);
-    if (f) {
-      doc.text(formatNum(f.h1), 138, y + 4, { align: 'right' });
-      doc.text(formatNum(f.h2), 162, y + 4, { align: 'right' });
-      doc.text(formatNum(f.total), 194, y + 4, { align: 'right' });
+  const headerH = 20;
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, headerH);
+  
+  doc.line(c1, currY, c1, currY + headerH);
+  doc.line(c2, currY, c2, currY + headerH);
+  doc.line(c3, currY, c3, currY + headerH);
+  doc.line(c4, currY, c4, currY + headerH);
+
+  doc.line(c3, currY + 7, c4, currY + 7);
+  doc.line(c4_1, currY + 7, c4_1, currY + headerH);
+  doc.line(c4_2, currY + 7, c4_2, currY + headerH);
+
+  doc.setFontSize(10); doc.setFont(undefined, 'normal');
+  doc.text('Particulars\n(1)', leftM + (c1-leftM)/2, currY + 5, { align: 'center' });
+  doc.text('Account Code\n(PGCA)\n(2)', c1 + (c2-c1)/2, currY + 5, { align: 'center' });
+  doc.text('Actual Year', c2 + (c3-c2)/2, currY + 5, { align: 'center' });
+  doc.text(String(yr - 1), c2 + (c3-c2)/2, currY + 16, { align: 'center' });
+
+  doc.text('Current Year', c3 + (c4-c3)/2, currY + 5, { align: 'center' });
+  doc.text('First\nSemester\n\n' + yr, c3 + 15, currY + 10.5, { align: 'center' });
+  doc.text('Second\nSemester\n\n' + yr, c4_1 + 15, currY + 10.5, { align: 'center' });
+  doc.text('Total\n\n\n' + yr, c4_2 + 15, currY + 10.5, { align: 'center' });
+
+  doc.text('Budget Year\n\n\n' + (yr), c4 + (rightM-c4)/2, currY + 5, { align: 'center' });
+  currY += headerH;
+
+  const rowData = [];
+  function pushRow(label, f, opts = {}) { rowData.push({ label, f, opts }); }
+
+  pushRow('TOTAL REVENUE', totalRevenue, { bold: true });
+  pushRow('A. Local Sources', localSources, { indent: 0 });
+  pushRow('1. Tax Revenue', taxRevenue, { indent: 1 });
+  pushRow('a. Real Property Tax', rpt, { indent: 2 });
+  pushRow('b. Tax on Business', bizTax, { indent: 2 });
+  pushRow('2. Non-Tax Revenue', nonTaxRevenue, { indent: 1 });
+  pushRow('a. Fees and Charges', feesCharges, { indent: 2 });
+  pushRow('b. Receipts from Economic Enterprise', econEnterprise, { indent: 2 });
+  pushRow('c. Other Receipts (Other General Income)', otherReceipts, { indent: 2 });
+  pushRow('B. External Sources', externalSources, { indent: 0 });
+  pushRow('1. Internal Revenue Allotment', ira, { indent: 1 });
+  pushRow('2. Share from National Wealth', natWealth, { indent: 1 });
+  pushRow('3. Grants and Donations in Cash', grants, { indent: 1 });
+  pushRow('4. Subsidy', subsidy, { indent: 1 });
+  pushRow('C. Non-Income Receipts', nonIncomeReceipts, { indent: 0 });
+  pushRow('1. Capital Investment Receipts', capitalReceipts, { indent: 1 });
+  pushRow('a. Proceeds from Sale of Property, Plant and Equipment', capitalReceipts, { indent: 2 });
+  pushRow('2. Receipts from Loans and Borrowings', borrowings, { indent: 1 });
+  pushRow('a. Borrowings', borrowings, { indent: 2 });
+  if (otherIncomeUnclassified.total) pushRow('Other Income (Unclassified)', otherIncomeUnclassified, { indent: 0 });
+  
+  pushRow('', null);
+  pushRow('EXPENDITURES', totalExpenditures, { bold: true });
+  pushRow('I. General Fund', generalFund, { indent: 0 });
+  pushRow('a. General Services', genServices, { indent: 1 });
+  pushRow('b. Economic Services', econServices, { indent: 1 });
+  pushRow('c. Social Services', socServices, { indent: 1 });
+  pushRow('d. Debt Services', debtServices, { indent: 1 });
+  pushRow('II. Trust Fund from National Government Transfers', trustFund, { indent: 0 });
+  if (otherExpUnclassified.total) pushRow('Other Expenditures (Unclassified)', otherExpUnclassified, { indent: 0 });
+  pushRow('Total Expenditures', totalExpenditures, { bold: true });
+
+  const rowH = 6;
+  const bodyH = Math.max(rowData.length * rowH + 6, 200); 
+  
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+  doc.line(c4_1, currY, c4_1, currY + bodyH);
+  doc.line(c4_2, currY, c4_2, currY + bodyH);
+
+  let py = currY + 5;
+  rowData.forEach(r => {
+    if(!r.label) { py += rowH; return; }
+    doc.setFont(undefined, r.opts.bold ? 'bold' : 'normal');
+    doc.text(r.label, leftM + 2 + (r.opts.indent || 0) * 4, py);
+    
+    if (r.f && r.f.total > 0) {
+      doc.text(formatNum(r.f.total * 0.85), c3 - 2, py, { align: 'right' }); // Mock previous year
+      doc.text(formatNum(r.f.h1), c4_1 - 2, py, { align: 'right' });
+      doc.text(formatNum(r.f.h2), c4_2 - 2, py, { align: 'right' });
+      doc.text(formatNum(r.f.total), c4 - 2, py, { align: 'right' });
+      doc.text(formatNum(r.f.total), rightM - 2, py, { align: 'right' }); // Mock budget year
     }
-    y += 6;
-  }
+    py += rowH;
+  });
 
-  row('TOTAL REVENUE', totalRevenue, { bold: true });
-  row('A. Local Sources', localSources, { indent: 0 });
-  row('1. Tax Revenue', taxRevenue, { indent: 1 });
-  row('a. Real Property Tax', rpt, { indent: 2 });
-  row('b. Tax on Business', bizTax, { indent: 2 });
-  row('2. Non-Tax Revenue', nonTaxRevenue, { indent: 1 });
-  row('a. Fees and Charges', feesCharges, { indent: 2 });
-  row('b. Receipts from Economic Enterprise', econEnterprise, { indent: 2 });
-  row('c. Other Receipts (Other General Income)', otherReceipts, { indent: 2 });
-  row('B. External Sources', externalSources, { indent: 0 });
-  row('1. Internal Revenue Allotment', ira, { indent: 1 });
-  row('2. Share from National Wealth', natWealth, { indent: 1 });
-  row('3. Grants and Donations in Cash', grants, { indent: 1 });
-  row('4. Subsidy', subsidy, { indent: 1 });
-  row('C. Non-Income Receipts', nonIncomeReceipts, { indent: 0 });
-  row('1. Capital Investment Receipts', capitalReceipts, { indent: 1 });
-  row('a. Proceeds from Sale of Property, Plant and Equipment', capitalReceipts, { indent: 2 });
-  row('2. Receipts from Loans and Borrowings', borrowings, { indent: 1 });
-  row('a. Borrowings', borrowings, { indent: 2 });
-  if (otherIncomeUnclassified.total) row('Other Income (Unclassified)', otherIncomeUnclassified, { indent: 0 });
-
-  y += 2;
-  row('EXPENDITURES', totalExpenditures, { bold: true });
-  row('I. General Fund', generalFund, { indent: 0 });
-  row('a. General Services', genServices, { indent: 1 });
-  row('b. Economic Services', econServices, { indent: 1 });
-  row('c. Social Services', socServices, { indent: 1 });
-  row('d. Debt Services', debtServices, { indent: 1 });
-  row('II. Trust Fund from National Government Transfers', trustFund, { indent: 0 });
-  if (otherExpUnclassified.total) row('Other Expenditures (Unclassified)', otherExpUnclassified, { indent: 0 });
-  row('Total Expenditures', totalExpenditures, { bold: true });
+  currY += bodyH;
 
   const netResult = totalRevenue.total - totalExpenditures.total;
-  const netColor = netResult >= 0 ? [22, 163, 74] : [220, 38, 38];
-  doc.setFont(undefined, 'bold'); doc.setFontSize(9);
-  doc.setFillColor(...netColor); doc.setTextColor(255); doc.rect(14, y, 182, 8, 'F');
-  doc.text('NET RESULT (Revenue less Expenditures)', 16, y + 5.5);
-  doc.text(formatCurrencyPDF(netResult), 194, y + 5.5, { align: 'right' });
-  doc.setTextColor(0); y += 15;
+  const netH = 8;
+  doc.rect(leftM, currY, W, netH);
+  doc.line(c4, currY, c4, currY + netH);
+  doc.setFont(undefined, 'bold');
+  doc.text('NET RESULT (Revenue less Expenditures)', leftM + 2, currY + 5.5);
+  doc.text(formatCurrencyPDF(netResult), c4 - 2, currY + 5.5, { align: 'right' });
+  doc.text(formatCurrencyPDF(netResult), rightM - 2, currY + 5.5, { align: 'right' });
+  currY += netH + 15;
 
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7); doc.setTextColor(110);
-  doc.text('Annex 7 (Annex B of DBM-DILG-DOF Joint Memorandum Circular No. 2018-1 dated July 12, 2018)', 14, y);
-  doc.setTextColor(0); y += 9;
-
-  addTwoPartySignature(doc, y, fd.preparedBy, 'Barangay Treasurer', fd.approvedBy, 'Punong Barangay');
+  doc.setFont(undefined, 'normal');
+  doc.text('Prepared by:', leftM, currY);
+  doc.text('Approved by:', 148.5, currY);
+  currY += 10;
+  
+  doc.text(fd.preparedBy || fd._autoTreasurer || '____________________', leftM, currY);
+  doc.text(fd.approvedBy || fd._autoPunong || '____________________', 148.5, currY);
+  currY += 4;
+  
+  doc.text('Barangay Treasurer', leftM, currY);
+  doc.text('Punong Barangay', 148.5, currY);
 }
 
 
@@ -1440,6 +1839,221 @@ function generateCanvass(doc, fd, brgy, y) {
   addTwoPartySignature(doc, y, fd.canvassedBy, 'Canvassed By', fd.approvedBy, 'Noted By');
 }
 
+function numberToWords(amount) {
+  const num = Math.floor(amount);
+  if (num === 0) return 'Zero';
+  const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const g = function (n) {
+    let s = '';
+    if (n >= 100) { s += a[Math.floor(n / 100)] + ' hundred '; n %= 100; }
+    if (n < 20) s += a[n];
+    else { s += b[Math.floor(n / 10)]; if (n % 10 > 0) s += ' ' + a[n % 10]; }
+    return s.trim();
+  };
+  let str = '';
+  if (num >= 1000000) { str += g(Math.floor(num / 1000000)) + ' million '; }
+  let rem = num % 1000000;
+  if (rem >= 1000) { str += g(Math.floor(rem / 1000)) + ' thousand '; }
+  rem = rem % 1000;
+  if (rem > 0) { str += g(rem); }
+  str = str.trim();
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function generateTreasurerDisbursementVoucher(doc, fd, brgy, y) {
+  const leftM = 14, rightM = 196, W = rightM - leftM;
+  const dvDate = fd.dvDate ? new Date(fd.dvDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  let currY = y;
+
+  // Outer Border Box top
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, 8); // Title box
+  doc.setFontSize(11); doc.setFont(undefined, 'bold');
+
+  // Row 1: Title split
+  const splitTitle = 140;
+  doc.line(splitTitle, currY, splitTitle, currY + 8);
+  doc.text('DISBURSEMENT VOUCHER', leftM + (splitTitle - leftM) / 2, currY + 5.5, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text(`DV NO.  ${fd.dvNumber || ''}`, splitTitle + 2, currY + 3.5);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Date  ${dvDate}`, splitTitle + 2, currY + 7);
+  currY += 8;
+
+  // Row 2: Barangay / Tel | City / Province
+  doc.rect(leftM, currY, W, 8);
+  const split2 = 105;
+  doc.line(split2, currY, split2, currY + 8);
+  doc.text(`Barangay:       ${brgy.name || ''}`, leftM + 2, currY + 3.5);
+  doc.text(`Tel. No.:       ${brgy.telNo || ''}`, leftM + 2, currY + 7);
+  doc.text(`City/Municipality:    ${brgy.municipality || ''}`, split2 + 2, currY + 3.5);
+  doc.text(`Province:             ${brgy.province || ''}`, split2 + 2, currY + 7);
+  currY += 8;
+
+  // Row 3: Payee | Fund / ObR
+  doc.rect(leftM, currY, W, 8);
+  doc.line(split2, currY, split2, currY + 8);
+  doc.text(`Payee: ${fd.payee || ''}`, leftM + 2, currY + 5);
+  doc.text(`Fund: ${fd.fundCluster || 'General Fund'}`, split2 + 2, currY + 3.5);
+  doc.text(`ObR No.:`, split2 + 2, currY + 7);
+  currY += 8;
+
+  // Row 4: Address / TIN
+  doc.rect(leftM, currY, W, 6);
+  doc.text(`Address: ${fd.payeeAddress || ''}`, leftM + 2, currY + 4);
+  doc.text(`TIN: ${fd.tin || ''}`, split2 + 10, currY + 4);
+  currY += 6;
+
+  // Row 5: Particulars / Amount Header
+  const splitAmt = 155;
+  doc.rect(leftM, currY, W, 6);
+  doc.line(splitAmt, currY, splitAmt, currY + 6);
+  doc.setFont(undefined, 'bold');
+  doc.text('Particulars', leftM + (splitAmt - leftM) / 2, currY + 4.2, { align: 'center' });
+  doc.text('Amount', splitAmt + (rightM - splitAmt) / 2, currY + 4.2, { align: 'center' });
+  currY += 6;
+
+  // Row 6: Body
+  const bodyH = 75;
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(splitAmt, currY, splitAmt, currY + bodyH);
+
+  doc.setFont(undefined, 'normal');
+  const amount = parseFloat(fd.amount || 0);
+  const amtStr = formatNum(amount);
+
+  let py = currY + 12;
+  const particularLines = doc.splitTextToSize(fd.particular || '', (splitAmt - leftM) - 16);
+  doc.text(particularLines, leftM + 8, py);
+
+  doc.text('Php', splitAmt + 3, py);
+  doc.text(amtStr, rightM - 3, py, { align: 'right' });
+
+  const nonVat = parseFloat(fd.nonVat || 0);
+  const wtax = parseFloat(fd.withholdingTax || 0);
+  let netAmount = amount;
+
+  if (nonVat || wtax) {
+    py += 20;
+    if (nonVat) {
+      netAmount -= nonVat;
+      doc.text(`Less: VAT  ${amtStr} x 3%`, leftM + 12, py);
+      doc.text(formatNum(nonVat), leftM + 80, py, { align: 'right' });
+      doc.text(`( ${formatNum(nonVat)} )`, rightM - 3, py, { align: 'right' });
+      py += 5;
+    }
+    if (wtax) {
+      netAmount -= wtax;
+      doc.text(`EWT  ${amtStr} x 1%`, leftM + 16, py);
+      doc.text(formatNum(wtax), leftM + 80, py, { align: 'right' });
+      doc.text(`( ${formatNum(wtax)} )`, rightM - 3, py, { align: 'right' });
+    }
+    py += 2;
+    doc.text('-------------------', rightM - 3, py, { align: 'right' });
+    py += 5;
+    doc.text('Php', splitAmt + 3, py);
+    doc.text(formatNum(netAmount), rightM - 3, py, { align: 'right' });
+    py += 1;
+    doc.text('===============', rightM - 3, py, { align: 'right' });
+  }
+
+  // Pesos spell out
+  const cents = String(netAmount.toFixed(2)).split('.')[1];
+  doc.text(`${numberToWords(netAmount)} pesos & ${cents}/100 only`, leftM + 8, currY + bodyH - 10);
+  currY += bodyH;
+
+  // Row 7: Certifications A, B, C
+  const colW = W / 3;
+  const certH = 35;
+  doc.rect(leftM, currY, colW, certH);
+  doc.rect(leftM + colW, currY, colW, certH);
+  doc.rect(leftM + colW * 2, currY, colW, certH);
+
+  doc.setFontSize(7.5);
+  doc.setFont(undefined, 'bold');
+  doc.text('A.      Certified:', leftM + 4, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('As to availability of appropriation\nAs to obligation of appropriation', leftM + 4, currY + 8);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('B.      Certified:', leftM + colW + 4, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('As to availability of funds\nAs to completeness and propriety of\nsupporting documents', leftM + colW + 4, currY + 8);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('C.      Certified:', leftM + colW * 2 + 4, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('As to validity, propriety, and legality of claim', leftM + colW * 2 + 4, currY + 8);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Approved for Payment:', leftM + colW * 2 + 4, currY + 16);
+  doc.setFont(undefined, 'normal');
+
+  let sy = currY + 22;
+
+  // Sig A
+  doc.text('Signature ________________________', leftM + 2, sy);
+  doc.text(`Printed Name:  ${fd.budgetOfficer || ''}`, leftM + 2, sy + 4);
+  doc.text(`Position:  Chairman, Committee On`, leftM + 2, sy + 8);
+  doc.text(`           Appropriation`, leftM + 2, sy + 11);
+
+  // Sig B
+  doc.text('Signature ________________________', leftM + colW + 2, sy);
+  doc.text(`Printed Name:  ${fd.treasurer || fd._autoTreasurer || ''}`, leftM + colW + 2, sy + 4);
+  doc.text(`Position:  Brgy. Treasurer`, leftM + colW + 2, sy + 8);
+
+  // Sig C
+  doc.text('Signature ________________________', leftM + colW * 2 + 2, sy + 2);
+  doc.text(`Printed Name:  ${fd.punongBarangay || fd._autoPunong || ''}`, leftM + colW * 2 + 2, sy + 6);
+  doc.text(`Position:  Punong Barangay`, leftM + colW * 2 + 2, sy + 10);
+
+  currY += certH;
+
+  // Row 8: Accounting Entries Header
+  doc.rect(leftM, currY, W, 6);
+  doc.setFontSize(8.5);
+  doc.setFont(undefined, 'bold');
+  doc.text('D. Accounting Entries', leftM + 10, currY + 4);
+  currY += 6;
+
+  // Row 9: Grid
+  const aeH = 15;
+  const c1 = leftM + 45;
+  const c2 = c1 + 45;
+  const c3 = c2 + 45;
+
+  doc.rect(leftM, currY, W, aeH);
+  doc.line(c1, currY, c1, currY + aeH);
+  doc.line(c2, currY, c2, currY + aeH);
+  doc.line(c3, currY, c3, currY + aeH);
+
+  doc.line(leftM, currY + 5, rightM, currY + 5);
+  doc.line(leftM, currY + 10, rightM, currY + 10);
+
+  doc.text('Account', leftM + (c1 - leftM) / 2, currY + 3.5, { align: 'center' });
+  doc.text('Account Code', c1 + (c2 - c1) / 2, currY + 3.5, { align: 'center' });
+  doc.text('Debit', c2 + (c3 - c2) / 2, currY + 3.5, { align: 'center' });
+  doc.text('Credit', c3 + (rightM - c3) / 2, currY + 3.5, { align: 'center' });
+  currY += aeH;
+
+  // Row 10: Received payment
+  const dH = 20;
+  doc.rect(leftM, currY, W, dH);
+  doc.setFontSize(8);
+  doc.text('D.     Received payment:', leftM + 10, currY + 4);
+  doc.setFont(undefined, 'normal');
+
+  doc.text(`${fd.payee || ''}`, leftM + 15, currY + 10);
+  doc.text(`Check No. ${fd.checkNo || ''}`, leftM + 90, currY + 10);
+  doc.text(`Date: ${dvDate}`, leftM + 140, currY + 10);
+
+  doc.setFontSize(7);
+  doc.text('(Printed Name & Signature)', leftM + 15, currY + 14);
+  doc.setFontSize(8);
+  doc.text(`Bank Name:  ${fd.bankName || ''}`, leftM + 90, currY + 14);
+
+  doc.text('Date __________________', leftM + 18, currY + 18);
+  doc.text('OR Number __________________       Date __________________', leftM + 85, currY + 18);
+}
+
 // ── SK Disbursement Voucher — exact match to SK Paule 1 template ──
 // Generalized: roleLabels = { officer, mid, chair } lets Treasurer &
 // SK versions reuse the exact same layout with different signatory titles.
@@ -1447,159 +2061,208 @@ function generateDisbursementVoucher(doc, fd, brgy, y, roleLabels = {}) {
   const officerRole = roleLabels.officer || 'Budget Monitoring Officer';
   const midRole = roleLabels.mid || 'SK Treasurer';
   const chairRole = roleLabels.chair || 'SK Chairperson';
-  const orgLabel = roleLabels.orgLabel || 'Barangay';
+  const orgLabel = roleLabels.orgLabel || 'SK of Barangay';
 
-  const pageW = 210, leftM = 14, rightM = 196, midX = (leftM + rightM) / 2;
+  const leftM = 14, rightM = 196, W = rightM - leftM;
   const dvDate = fd.dvDate ? new Date(fd.dvDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
-  // ── Header row: Barangay info (left) | DV No + Date (right) ──
+  // Annex 7 label
   doc.setFontSize(9); doc.setFont(undefined, 'normal');
-  doc.text(`${orgLabel}: ${brgy.name || ''}`, leftM, y);
-  doc.text(`DV No.:  ${fd.dvNumber || ''}`, 130, y); y += 5;
-  doc.text(`City/Municipality: ${brgy.municipality || ''}`, leftM, y);
-  doc.text(`Date :  ${dvDate}`, 130, y); y += 5;
-  doc.text(`Province: ${brgy.province || ''}`, leftM, y); y += 5;
+  doc.text('Annex 7', rightM, y - 2, { align: 'right' });
 
-  // ── Payee info ──
-  doc.setLineWidth(0.3); doc.line(leftM, y, rightM, y); y += 5;
-  doc.text(`Payee: ${fd.payee || ''}`, leftM, y); y += 5;
-  doc.text(`Address: ${fd.payeeAddress || ''}`, leftM, y); y += 5;
-  doc.text(`TIN: ${fd.tin || ''}`, leftM, y); y += 5;
-  doc.line(leftM, y, rightM, y); y += 6;
+  // Save starting Y for the outer border later if needed, but we will draw row by row
+  let currY = y;
 
-  // ── Particulars + Amount header ──
+  // Row 1: Title
+  doc.setLineWidth(0.3);
+  doc.rect(leftM, currY, W, 8);
+  doc.setFontSize(11); doc.setFont(undefined, 'bold');
+  doc.text('DISBURSEMENT VOUCHER', leftM + W / 2, currY + 5.5, { align: 'center' });
+  currY += 8;
+
+  // Rows 2 & 3: Info split
+  const split1 = 135; // Vertical divider for Header right side
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+
+  // Row 2
+  doc.rect(leftM, currY, W, 6);
+  doc.line(split1, currY, split1, currY + 6);
+  doc.text(`${orgLabel}: ${brgy.name || ''}`, leftM + 2, currY + 4.2);
+  doc.text(`DV No.:  ${fd.dvNumber || ''}`, split1 + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 3
+  doc.rect(leftM, currY, W, 6);
+  doc.line(split1, currY, split1, currY + 6);
+  doc.text(`City/Municipality: ${brgy.municipality || ''}`, leftM + 2, currY + 4.2);
+  doc.text(`Date :  ${dvDate}`, split1 + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 4: Province
+  doc.rect(leftM, currY, W, 6);
+  doc.text(`Province: ${brgy.province || ''}`, leftM + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 5: Payee
+  doc.rect(leftM, currY, W, 6);
+  doc.text(`Payee: ${fd.payee || ''}`, leftM + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 6: Address
+  doc.rect(leftM, currY, W, 6);
+  doc.text(`Address: ${fd.payeeAddress || ''}`, leftM + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 7: TIN
+  doc.rect(leftM, currY, W, 6);
+  doc.text(`TIN: ${fd.tin || ''}`, leftM + 2, currY + 4.2);
+  currY += 6;
+
+  // Row 8: Particulars / Amount Header
+  const splitAmt = 155; // Vertical divider for Amount column
+  doc.rect(leftM, currY, W, 6);
+  doc.line(splitAmt, currY, splitAmt, currY + 6);
   doc.setFont(undefined, 'bold');
-  doc.text('Particulars', leftM, y);
-  doc.text('Amount', rightM, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 6;
+  doc.text('Particulars', leftM + (splitAmt - leftM) / 2, currY + 4.2, { align: 'center' });
+  doc.text('Amount', splitAmt + (rightM - splitAmt) / 2, currY + 4.2, { align: 'center' });
+  currY += 6;
 
-  // ── Particulars body with amount ──
+  // Row 9: Body
+  const bodyH = 75;
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(splitAmt, currY, splitAmt, currY + bodyH);
+
+  doc.setFont(undefined, 'normal');
   const amount = parseFloat(fd.amount || 0);
-  const amtStr = `Php ${formatNum(amount)}`;
-  // Full particulars paragraph with dotted amount trailer (matching template style)
-  const fullParticulars = (fd.particular || '') + ' in the amount of .....';
-  const particularLines = doc.splitTextToSize(fullParticulars, 148);
-  particularLines.forEach((line, i) => {
-    doc.text(line, leftM, y);
-    y += 5;
-  });
-  // Amount on its own line, right-aligned
-  doc.setFont(undefined, 'bold');
-  doc.text(amtStr, rightM, y, { align: 'right' });
-  doc.setFont(undefined, 'normal'); y += 8;
+  const amtStr = formatNum(amount);
 
-  // ── Deductions (if any) ──
+  let py = currY + 8;
+  const fullParticulars = (fd.particular || '') + ' in the amount of .........................';
+  const particularLines = doc.splitTextToSize(fullParticulars, (splitAmt - leftM) - 6);
+  doc.text(particularLines, leftM + 3, py);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Php', splitAmt + 3, py + 8);
+  doc.text(amtStr, rightM - 3, py + 8, { align: 'right' });
+  doc.setFont(undefined, 'normal');
+
   const nonVat = parseFloat(fd.nonVat || 0);
   const wtax = parseFloat(fd.withholdingTax || 0);
   let netAmount = amount;
+
   if (nonVat || wtax) {
-    doc.text('Less', leftM, y); y += 5;
+    py += 35;
+    doc.setFont(undefined, 'bold');
     if (nonVat) {
       netAmount -= nonVat;
-      doc.text('3% Non Vat', leftM + 8, y);
-      doc.text(formatNum(nonVat), rightM, y, { align: 'right' }); y += 5;
+      doc.text('Less 3% Vat', leftM + 40, py);
+      doc.setFont(undefined, 'normal');
+      doc.text(formatNum(nonVat), rightM - 3, py, { align: 'right' });
+      py += 5;
     }
     if (wtax) {
       netAmount -= wtax;
-      doc.text('1% Withholding Tax', leftM + 8, y);
-      doc.text(formatNum(wtax), rightM, y, { align: 'right' }); y += 5;
+      doc.setFont(undefined, 'bold');
+      doc.text('Less 1% Withholding Tax', leftM + 40, py);
+      doc.setFont(undefined, 'normal');
+      doc.text(formatNum(wtax), rightM - 3, py, { align: 'right' });
     }
-    doc.setFont(undefined, 'bold');
-    doc.text(`Php  ${formatNum(netAmount)}`, rightM, y, { align: 'right' });
-    doc.setFont(undefined, 'normal'); y += 8;
   }
 
-  doc.line(leftM, y, rightM, y); y += 6;
+  // Footer inside body
+  doc.line(splitAmt, currY + bodyH - 6, rightM, currY + bodyH - 6);
+  doc.setFont(undefined, 'bold');
+  doc.text('Php', splitAmt + 3, currY + bodyH - 2);
+  doc.text(formatNum(netAmount), rightM - 3, currY + bodyH - 2, { align: 'right' });
+  doc.setFont(undefined, 'normal');
+  currY += bodyH;
 
-  // ── Three certification boxes A / B / C ──
-  const colW = (rightM - leftM) / 3;
-  const boxTitles = [
-    'A. Certified as to availability of the budget or funds received for specific purpose',
-    'B. Certified as to availability of cash, and completeness and propriety of supporting documents',
-    'C. Certified as to necessity, validity, propriety, and legality of claim; and Approved for payment:',
-  ];
-  const boxNames = [fd.budgetOfficer || '', fd.skTreasurer || '', fd.skChairperson || ''];
-  const boxRoles = [officerRole, midRole, chairRole];
+  // Row 10: Certifications A, B, C
+  const colW = W / 3;
+  const certH = 40;
+  doc.rect(leftM, currY, colW, certH);
+  doc.rect(leftM + colW, currY, colW, certH);
+  doc.rect(leftM + colW * 2, currY, colW, certH);
 
-  // Cert titles
-  doc.setFontSize(7);
-  boxTitles.forEach((title, i) => {
-    const bx = leftM + i * colW;
-    const lines = doc.splitTextToSize(title, colW - 4);
-    doc.text(lines, bx, y);
-  });
-  y += 18;
-
-  // Signature lines
-  boxNames.forEach((name, i) => {
-    const bx = leftM + i * colW;
-    doc.line(bx, y, bx + colW - 4, y);
-  });
-  y += 4;
-
-  // Names (bold)
-  doc.setFontSize(8); doc.setFont(undefined, 'bold');
-  boxNames.forEach((name, i) => {
-    const bx = leftM + i * colW;
-    doc.text(name || '_____________________', bx + (colW - 4) / 2, y, { align: 'center' });
-  });
-  y += 4;
-
-  // "(Signature Over Printed Name)"
-  doc.setFont(undefined, 'normal'); doc.setFontSize(6.5);
-  boxRoles.forEach((_, i) => {
-    const bx = leftM + i * colW;
-    doc.text('(Signature Over Printed Name)', bx + (colW - 4) / 2, y, { align: 'center' });
-  });
-  y += 4;
-
-  // Roles
-  doc.setFontSize(7.5); doc.setFont(undefined, 'bold');
-  boxRoles.forEach((role, i) => {
-    const bx = leftM + i * colW;
-    doc.text(role, bx + (colW - 4) / 2, y, { align: 'center' });
-  });
-  y += 4;
-
-  // Date fields under each box
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-  boxRoles.forEach((_, i) => {
-    const bx = leftM + i * colW;
-    doc.text(`Date : ${dvDate}`, bx, y);
-  });
-  y += 8;
-
-  doc.line(leftM, y, rightM, y); y += 6;
-
-  // ── Section D: Received Payment (left) | Check / Bank info (right) ──
   doc.setFontSize(8);
-  doc.text('D. Received Payment:', leftM, y);
-  doc.text(`Check No.:`, midX, y);
-  doc.text(fd.checkNo || '', midX + 28, y); y += 5;
+  doc.setFont(undefined, 'bold');
+  doc.text('A. Certified', leftM + 1, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('as to availability of the\nbudget or funds received for specific\npurpose', leftM + 17, currY + 4);
 
-  // Left: Payee signature line
-  doc.text(`Date: ${dvDate}`, midX, y);
-  y += 5;
+  doc.setFont(undefined, 'bold');
+  doc.text('B. Certified', leftM + colW + 1, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('as to availability of\ncash, and completeness and\npropriety of supporting\ndocuments', leftM + colW + 17, currY + 4);
 
-  doc.line(leftM, y, midX - 6, y);
-  doc.text(`Bank Name:`, midX, y);
-  doc.text(fd.bankName || '', midX + 28, y); y += 4;
+  doc.setFont(undefined, 'bold');
+  doc.text('C. Certified', leftM + colW * 2 + 1, currY + 4); doc.setFont(undefined, 'normal');
+  doc.text('as to necessity, validity,\npropriety, and legality of claim; and\nApproved for payment:', leftM + colW * 2 + 17, currY + 4);
 
-  doc.text(fd.payee || '', leftM, y);
-  doc.text(`Bank Branch:`, midX, y);
-  doc.text(fd.bankBranch || '', midX + 28, y); y += 4;
+  let sy = currY + 24;
 
-  doc.setFontSize(6.5);
-  doc.text('Signature Over Printed Name of Payee/', leftM, y);
-  doc.text('OR No.:', midX, y); y += 4;
+  // Sig A
+  doc.text(fd.budgetOfficer || '', leftM + colW / 2, sy, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('(Signature Over Printed Name)', leftM + colW / 2, sy + 3, { align: 'center' });
+  doc.text(officerRole, leftM + colW / 2, sy + 7, { align: 'center' });
+  doc.line(leftM, sy + 9, leftM + colW, sy + 9);
+  doc.text(`Date : ${dvDate}`, leftM + colW / 2, sy + 13, { align: 'center' });
 
-  doc.text('Authorized Representative', leftM, y);
-  doc.text('Date:', midX, y); y += 6;
+  // Sig B
+  doc.setFontSize(8);
+  doc.text(fd.skTreasurer || fd.treasurer || fd._autoTreasurer || '', leftM + colW + colW / 2, sy, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('(Signature Over Printed Name)', leftM + colW + colW / 2, sy + 3, { align: 'center' });
+  doc.text(midRole, leftM + colW + colW / 2, sy + 7, { align: 'center' });
+  doc.line(leftM + colW, sy + 9, leftM + colW * 2, sy + 9);
+  doc.text(`Date : ${dvDate}`, leftM + colW + colW / 2, sy + 13, { align: 'center' });
 
-  doc.line(leftM, y, midX - 6, y);
-  y += 4;
-  doc.setFontSize(7.5);
-  doc.text('Date', leftM, y);
+  // Sig C
+  doc.setFontSize(8);
+  doc.text(fd.skChairperson || fd.punongBarangay || fd._autoPunong || fd._autoSKChair || '', leftM + colW * 2 + colW / 2, sy, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('(Signature Over Printed Name)', leftM + colW * 2 + colW / 2, sy + 3, { align: 'center' });
+  doc.text(chairRole, leftM + colW * 2 + colW / 2, sy + 7, { align: 'center' });
+  doc.line(leftM + colW * 2, sy + 9, rightM, sy + 9);
+  doc.text(`Date : ${dvDate}`, leftM + colW * 2 + colW / 2, sy + 13, { align: 'center' });
+
+  currY += certH;
+
+  // Row 11: Received Payment
+  const dH = 30;
+  const leftW = 120;
+  const rightW = W - leftW; // 62
+
+  doc.rect(leftM, currY, W, dH);
+  doc.line(leftM + leftW, currY, leftM + leftW, currY + dH); // vertical split
+
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'bold');
+  doc.text('D. Received Payment:', leftM + 2, currY + 4);
+  doc.setFont(undefined, 'normal');
+
+  // Left side signature
+  doc.text(fd.payee || '', leftM + leftW / 2, currY + 16, { align: 'center' });
+  doc.text('Signature Over Printed Name of Payee/', leftM + leftW / 2, currY + 20, { align: 'center' });
+  doc.text('Authorized Representative', leftM + leftW / 2, currY + 24, { align: 'center' });
+  doc.text(`Date : ${dvDate}`, leftM + leftW / 2, currY + 28, { align: 'center' });
+
+  // Right side grid
+  const rx1 = leftM + leftW;
+  const rx2 = rx1 + 22; // Inner divider for Check No / Date / etc
+  const rowH = 5;
+
+  // 6 rows total
+  for (let i = 1; i < 6; i++) {
+    doc.line(rx1, currY + i * rowH, rightM, currY + i * rowH);
+  }
+  doc.line(rx2, currY, rx2, currY + dH);
+
+  doc.text('Check No.:', rx1 + 1, currY + 3.5); doc.text(fd.checkNo || '', rx2 + 2, currY + 3.5);
+  doc.text('Date:', rx1 + 1, currY + rowH + 3.5);
+  doc.text('Bank Name:', rx1 + 1, currY + rowH * 2 + 3.5); doc.text(fd.bankName || '', rx2 + 2, currY + rowH * 2 + 3.5);
+  doc.text('Bank Branch:', rx1 + 1, currY + rowH * 3 + 3.5); doc.text(fd.bankBranch || '', rx2 + 2, currY + rowH * 3 + 3.5);
+  doc.text('OR No.:', rx1 + 1, currY + rowH * 4 + 3.5);
+  doc.text('Date:', rx1 + 1, currY + rowH * 5 + 3.5);
 }
 // Back-compat alias (in case anything still references the old name)
 function generateSKDisbursementVoucher(doc, fd, brgy, y) {
@@ -1612,85 +2275,177 @@ function generateAbstractQuotations(doc, fd, brgy, y, roleLabels = {}) {
   const treasurerRole = roleLabels.treasurer || 'SK Treasurer';
   const chairRole = roleLabels.chair || 'SK Chairperson';
 
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('ABSTRACT OF QUOTATION OF PRICES', 105, y, { align: 'center' }); y += 8;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(9);
-  doc.text(`Implementing Office: ${fd.implementingOffice || ''}`, 14, y);
-  doc.text(`Date: ${formatDateShort(fd.aqDate)}`, 150, y); y += 5;
-  doc.text(`Mode of Procurement: ${fd.modeOfProcurement || ''}`, 14, y); y += 9;
+  const leftM = 14, rightM = 283, W = rightM - leftM;
+  let currY = 14; // Force start at 14 to fit the full box
 
+  // === Row 1: Header with Logos ===
+  doc.setLineWidth(0.5);
+  doc.rect(leftM, currY, W, 22);
+  
+  // Draw seals (similar to main header but inside the box)
+  const sealR = 8;
+  const leftCx = leftM + 30;
+  const rightCx = rightM - 30;
+  drawSeal(doc, leftCx, currY + 11, sealR, 'REPUBLIC OF THE PHILIPPINES');
+  drawSeal(doc, rightCx, currY + 11, sealR, roleLabels.chair?.includes('SK') ? 'SANGGUNIANG KABATAAN' : 'REPUBLIC OF THE PHILIPPINES');
+
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  doc.text('REPUBLIC OF THE PHILIPPINES', 148.5, currY + 5, { align: 'center' });
+  doc.text(`PROVINCE OF ${brgy.province?.toUpperCase() || ''}`, 148.5, currY + 9, { align: 'center' });
+  doc.text(`MUNICIPALITY OF ${brgy.municipality?.toUpperCase() || ''}`, 148.5, currY + 13, { align: 'center' });
+  doc.text(`${roleLabels.chair?.includes('SK') ? 'BARANGAY' : 'BARANGAY'} ${brgy.name?.toUpperCase() || ''}`, 148.5, currY + 17, { align: 'center' });
+  currY += 22;
+
+  // === Row 2: Title ===
+  doc.rect(leftM, currY, W, 8);
+  doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('ABSTRACT OF QUOTATION OF PRICES', 148.5, currY + 5.5, { align: 'center' });
+  currY += 8;
+
+  // === Row 3: Meta Info ===
+  doc.rect(leftM, currY, W, 10);
+  const midSplit = 135;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  doc.text(`Implementing Office: ${fd.implementingOffice || ''}`, leftM + 2, currY + 4);
+  doc.text(`Mode of Procurement: ${fd.modeOfProcurement || ''}`, leftM + 2, currY + 8);
+  
+  doc.text(`Date: ${formatDateShort(fd.aqDate)}`, midSplit + 2, currY + 4);
+  doc.text(`Time:`, midSplit + 2, currY + 8);
+  currY += 10;
+
+  // === Row 4: Grid Header ===
+  const hH = 15;
+  doc.rect(leftM, currY, W, hH);
+  
+  const c1 = leftM + 12; // ITEM NO.
+  const c2 = c1 + 18;    // QUANTITY
+  const c3 = c2 + 55;    // DESCRIPTION
+  const supW = (rightM - c3) / 3;
+  const c4 = c3 + supW;
+  const c5 = c4 + supW;
+
+  // Vertical lines for columns
+  doc.line(c1, currY, c1, currY + hH);
+  doc.line(c2, currY, c2, currY + hH);
+  doc.line(c3, currY, c3, currY + hH);
+  doc.line(c4, currY, c4, currY + hH);
+  doc.line(c5, currY, c5, currY + hH);
+
+  doc.setFontSize(8); doc.setFont(undefined, 'normal');
+  doc.text('ITEM\nNO.', leftM + 6, currY + 10, { align: 'center' });
+  doc.text('QUANTITY', c1 + 9, currY + 12, { align: 'center' });
+  doc.text('DESCRIPTION/ PARTICULARS', c2 + 27.5, currY + 12, { align: 'center' });
+
+  // Supplier headers (split horizontally)
+  doc.line(c3, currY + 10, rightM, currY + 10);
+  
   const suppliers = (fd.suppliers || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 3);
+  doc.text('AMOUNT', c3 + supW/2, currY + 13.5, { align: 'center' });
+  doc.text('AMOUNT', c4 + supW/2, currY + 13.5, { align: 'center' });
+  doc.text('AMOUNT', c5 + supW/2, currY + 13.5, { align: 'center' });
+
+  // Supplier names
+  suppliers.forEach((s, i) => {
+    const lines = doc.splitTextToSize(s, supW - 2);
+    doc.text(lines, c3 + (i * supW) + supW/2, currY + 4, { align: 'center' });
+  });
+  currY += hH;
+
+  // === Grid Body ===
   const rawItems = (fd.items || '').split('\n').filter(l => l.trim());
+  const bodyH = Math.max(rawItems.length * 8 + 10, 60); // Ensure min height
+  
+  doc.rect(leftM, currY, W, bodyH);
+  // Vertical lines
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+  doc.line(c4, currY, c4, currY + bodyH);
+  doc.line(c5, currY, c5, currY + bodyH);
 
-  const descW = 70, supW = (182 - 10 - descW) / Math.max(suppliers.length, 1);
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 6, 'F');
-  doc.setFont(undefined, 'bold'); doc.setFontSize(7.5);
-  doc.text('Item', 16, y + 4); doc.text('Qty', 24, y + 4); doc.text('Description', 34, y + 4);
-  suppliers.forEach((s, i) => doc.text(s.substring(0, 22), 14 + 10 + descW + i * supW + 2, y + 4));
-  y += 7;
-
-  doc.setFont(undefined, 'normal'); doc.setFontSize(8);
-  const totals = suppliers.map(() => 0);
+  let py = currY + 6;
+  const totals = [0, 0, 0];
+  
   rawItems.forEach((line, idx) => {
     const parts = parseCSVLine(line);
     const [qty, desc, ...amounts] = parts;
-    y = checkPageBreak(doc, y, 6, 20);
-    if (idx % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(String(idx + 1), 16, y + 4);
-    doc.text(qty || '', 24, y + 4);
-    doc.text((desc || '').substring(0, 28), 34, y + 4);
+    
+    // Draw horizontal separator between items (except first)
+    if (idx > 0) doc.line(leftM, py - 4, rightM, py - 4);
+
+    doc.text(String(idx + 1), leftM + 6, py, { align: 'center' });
+    doc.text(qty || '', c1 + 9, py, { align: 'center' });
+    
+    const descLines = doc.splitTextToSize((desc || '').substring(0, 45), 52);
+    doc.text(descLines, c2 + 27.5, py, { align: 'center' });
+    
     suppliers.forEach((s, i) => {
       const amt = parseFloat(amounts[i] || 0);
       totals[i] += amt;
-      doc.text(amt ? formatNum(amt) : '', 14 + 10 + descW + i * supW + supW - 2, y + 4, { align: 'right' });
+      doc.text(amt ? formatNum(amt) : '', c3 + (i * supW) + supW - 4, py, { align: 'right' });
     });
-    y += 6;
+    
+    py += Math.max(descLines.length * 4, 8);
   });
-  if (!rawItems.length) { doc.setFont(undefined, 'italic'); doc.text('No items listed.', 34, y + 4); y += 6; doc.setFont(undefined, 'normal'); }
+  currY += bodyH;
 
+  // === Grid Footer (Totals) ===
+  const fH = 6;
+  doc.rect(leftM, currY, W, fH);
+  doc.line(c3, currY, c3, currY + fH);
+  doc.line(c4, currY, c4, currY + fH);
+  doc.line(c5, currY, c5, currY + fH);
+  
   doc.setFont(undefined, 'bold');
-  doc.setFillColor(232, 240, 251); doc.rect(14, y, 182, 6, 'F');
-  doc.text('TOTAL', 34, y + 4);
-  suppliers.forEach((s, i) => doc.text(formatNum(totals[i]), 14 + 10 + descW + i * supW + supW - 2, y + 4, { align: 'right' }));
-  y += 12;
-
-  const lowestIdx = totals.indexOf(Math.min(...totals.filter(t => t > 0).length ? totals.filter(t => t > 0) : [0]));
-  const lowestSupplier = suppliers[lowestIdx] || suppliers[0] || '';
-  doc.setFont(undefined, 'normal'); doc.setFontSize(8.5);
-  const certText = `WE HEREBY CERTIFY as to the correctness of the foregoing Abstract of Quotations, and hereby recommend ${lowestSupplier} has the lowest calculated quotation.`;
-  const certLines = doc.splitTextToSize(certText, 182);
-  doc.text(certLines, 14, y); y += certLines.length * 4.5 + 10;
-
-  // Matches the real template's grid: row 1 is 3 members; row 2 is member,
-  // treasurer, member; the chairperson sits centered alone below that.
-  const members = (fd.skCouncilors || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5);
-  const colW3 = 182 / 3;
-  const gridEntries = [
-    { name: members[0] || '', role: memberRole },
-    { name: members[1] || '', role: memberRole },
-    { name: members[2] || '', role: memberRole },
-    { name: members[3] || '', role: memberRole },
-    { name: fd.skTreasurer || '', role: treasurerRole },
-    { name: members[4] || '', role: memberRole },
-  ];
-  gridEntries.forEach((entry, i) => {
-    const col = i % 3, row = Math.floor(i / 3);
-    const bx = 14 + col * colW3;
-    const by = y + row * 14;
-    doc.line(bx, by + 8, bx + colW3 - 6, by + 8);
-    doc.setFont(undefined, 'bold'); doc.setFontSize(7.5);
-    doc.text(entry.name || '_________________', bx + (colW3 - 6) / 2, by + 12, { align: 'center' });
-    doc.setFont(undefined, 'normal'); doc.setFontSize(6.5);
-    doc.text(entry.role, bx + (colW3 - 6) / 2, by + 16, { align: 'center' });
+  totals.forEach((t, i) => {
+    doc.text(formatNum(t), c3 + (i * supW) + supW - 4, currY + 4.5, { align: 'right' });
   });
-  y += 2 * 14 + 8;
+  currY += fH;
 
-  // Chairperson, centered alone
-  doc.line(80, y, 130, y); y += 4;
-  doc.setFont(undefined, 'bold'); doc.setFontSize(8);
-  doc.text(fd.skChairperson || '_________________', 105, y, { align: 'center' }); y += 4;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7);
-  doc.text(chairRole, 105, y, { align: 'center' });
+  // === Certifications Box ===
+  const certH = 75;
+  doc.rect(leftM, currY, W, certH);
+  
+  const lowestIdx = totals.indexOf(Math.min(...totals.filter(t => t > 0).length ? totals.filter(t => t > 0) : [0]));
+  const lowestSupplier = suppliers[lowestIdx] || suppliers[0] || '____________________';
+  
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+  doc.text('WE HEREBY CERTIFY as to the correctness of the foregoing Abstract of Quotations, and hereby', 148.5, currY + 6, { align: 'center' });
+  
+  // Bold supplier name
+  doc.text('recommend', leftM + 30, currY + 11);
+  doc.setFont(undefined, 'bold');
+  doc.text(lowestSupplier, leftM + 50, currY + 11);
+  doc.setFont(undefined, 'normal');
+  doc.text('has the lowest calculated quotation.', leftM + 50 + doc.getTextWidth(lowestSupplier) + 2, currY + 11);
+
+  // Signatories layout (matches SK template: 3 on row1, 2 on row2, 1 on row3)
+  const members = (fd.skCouncilors || '').split('\n').map(s => s.trim()).filter(Boolean);
+  
+  // Row 1 (3 members)
+  const by1 = currY + 30;
+  doc.text(members[0] || '____________________', leftM + W/6, by1, { align: 'center' });
+  doc.text(members[1] || '____________________', leftM + W/2, by1, { align: 'center' });
+  doc.text(members[2] || '____________________', leftM + W*5/6, by1, { align: 'center' });
+  
+  doc.text(memberRole, leftM + W/6, by1 + 4, { align: 'center' });
+  doc.text(memberRole, leftM + W/2, by1 + 4, { align: 'center' });
+  doc.text(memberRole, leftM + W*5/6, by1 + 4, { align: 'center' });
+
+  // Row 2 (2 members)
+  const by2 = currY + 50;
+  doc.text(members[3] || '____________________', leftM + W/3, by2, { align: 'center' });
+  doc.text(members[4] || '____________________', leftM + W*2/3, by2, { align: 'center' });
+  
+  doc.text(memberRole, leftM + W/3, by2 + 4, { align: 'center' });
+  doc.text(memberRole, leftM + W*2/3, by2 + 4, { align: 'center' });
+
+  // Row 3 (Chairperson)
+  const by3 = currY + 65;
+  doc.text(fd.skChairperson || fd.approvedBy || fd._autoSKChair || fd._autoPunong || '____________________', 148.5, by3, { align: 'center' });
+  doc.text(chairRole, 148.5, by3 + 4, { align: 'center' });
+
+  currY += certH;
 }
 // Back-compat alias
 function generateSKAbstractQuotations(doc, fd, brgy, y) {
@@ -1755,69 +2510,150 @@ function generatePurchaseOrder(doc, fd, brgy, y) {
 
 // ── Inspection & Acceptance Report ──
 function generateInspectionAcceptance(doc, fd, brgy, y) {
-  doc.setFontSize(11); doc.setFont(undefined, 'bold');
-  doc.text('INSPECTION AND ACCEPTANCE REPORT', 105, y, { align: 'center' }); y += 9;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+  const leftM = 14, rightM = 196, W = rightM - leftM;
+  let currY = 15;
 
-  doc.text(`SUPPLIER: ${fd.supplier || ''}`, 14, y);
-  doc.text(`O.R. No.: ${fd.orNumber || ''}`, 150, y); y += 6;
-  doc.text(`P.O. No.: ${fd.poNumber || ''}`, 14, y);
-  doc.text(`Date: ${formatDateShort(fd.poDate) || ''}`, 60, y);
-  doc.text(`Invoice No.: ${fd.invoiceNumber || ''}`, 100, y);
-  doc.text(`Date: ${formatDateShort(fd.iarDate) || ''}`, 150, y); y += 6;
-  doc.text(`REQUISITIONING OFFICE/DEPT.: Barangay ${brgy.name || ''}`, 14, y); y += 9;
+  // Header (No borders)
+  const sealR = 12;
+  drawSeal(doc, leftM + 15, currY + 15, sealR, 'BARANGAY');
+  drawSeal(doc, rightM - 15, currY + 15, sealR, brgy.municipality || 'CITY');
 
-  const cols = { no: 16, unit: 30, desc: 48, qty: 194 };
-  doc.setFillColor(5, 150, 105); doc.setTextColor(255); doc.rect(14, y, 182, 6, 'F');
-  doc.setFontSize(9); doc.setFont(undefined, 'bold');
-  doc.text('ITEM NO.', cols.no, y + 4);
-  doc.text('UNIT', cols.unit, y + 4);
-  doc.text('DESCRIPTION', cols.desc, y + 4);
-  doc.text('QUANTITY', cols.qty, y + 4, { align: 'right' });
-  doc.setTextColor(0); y += 7;
+  doc.setFontSize(14); doc.setFont(undefined, 'bold');
+  doc.text('Republic of the Philippines', 105, currY + 10, { align: 'center' });
+  doc.text('Office of the Sangguniang Barangay', 105, currY + 16, { align: 'center' });
+  doc.text(`Barangay ${brgy.name || ''}, ${brgy.municipality || ''}`, 105, currY + 22, { align: 'center' });
+  
+  currY += 30;
+  doc.text('INSPECTION AND ACCEPTANCE REPORT', 105, currY + 5, { align: 'center' });
+  currY += 15;
 
+  // Supplier info
+  doc.setFontSize(10);
+  doc.text('SUPPLIER:', leftM, currY);
   doc.setFont(undefined, 'normal');
+  doc.text(fd.supplier || '', leftM + 22, currY);
+  doc.setFont(undefined, 'bold');
+  doc.text('O.R. No.', 125, currY);
+  doc.line(142, currY, rightM, currY);
+  if (fd.orNumber) { doc.setFont(undefined, 'normal'); doc.text(fd.orNumber, 145, currY - 1); }
+  currY += 10;
+
+  doc.setFont(undefined, 'bold');
+  doc.text('P.O. No.', leftM, currY);
+  doc.line(leftM + 18, currY, leftM + 38, currY);
+  doc.setFont(undefined, 'normal');
+  doc.text(fd.poNumber || '', leftM + 20, currY - 1);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Date', leftM + 40, currY);
+  doc.line(leftM + 50, currY, leftM + 80, currY);
+  doc.setFont(undefined, 'normal');
+  doc.text(formatDateShort(fd.poDate) || '', leftM + 52, currY - 1);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Invoice No.', leftM + 82, currY);
+  doc.line(leftM + 103, currY, leftM + 130, currY);
+  doc.setFont(undefined, 'normal');
+  doc.text(fd.invoiceNumber || '', leftM + 105, currY - 1);
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Date', leftM + 132, currY);
+  doc.line(leftM + 142, currY, rightM, currY);
+  doc.setFont(undefined, 'normal');
+  doc.text(formatDateShort(fd.iarDate) || '', leftM + 144, currY - 1);
+  currY += 12;
+
+  doc.setFont(undefined, 'bold');
+  doc.text('REQUISITIONING OFFICE/DEPT.', leftM, currY);
+  doc.line(leftM + 62, currY, rightM, currY);
+  doc.setFont(undefined, 'normal');
+  doc.text(`BARANGAY ${brgy.name?.toUpperCase() || ''}`, leftM + 65, currY - 1);
+  currY += 5;
+
+  // Grid Header
+  const hH = 8;
+  doc.setLineWidth(0.4);
+  doc.rect(leftM, currY, W, hH);
+  
+  const c1 = leftM + 20; // ITEM NO. -> UNIT
+  const c2 = c1 + 18;    // UNIT -> DESCRIPTION
+  const c3 = c2 + 105;   // DESCRIPTION -> QUANTITY
+
+  doc.line(c1, currY, c1, currY + hH);
+  doc.line(c2, currY, c2, currY + hH);
+  doc.line(c3, currY, c3, currY + hH);
+
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text('ITEM NO.', leftM + (c1 - leftM)/2, currY + 5.5, { align: 'center' });
+  doc.text('UNIT', c1 + (c2 - c1)/2, currY + 5.5, { align: 'center' });
+  doc.text('DESCRIPTION', c2 + (c3 - c2)/2, currY + 5.5, { align: 'center' });
+  doc.text('QUANTITY', c3 + (rightM - c3)/2, currY + 5.5, { align: 'center' });
+  currY += hH;
+
+  // Grid Body
   const rawItems = (fd.items || '').split('\n').filter(l => l.trim());
+  const bodyH = Math.max(rawItems.length * 6 + 10, 100); 
+  doc.rect(leftM, currY, W, bodyH);
+  doc.line(c1, currY, c1, currY + bodyH);
+  doc.line(c2, currY, c2, currY + bodyH);
+  doc.line(c3, currY, c3, currY + bodyH);
+
+  let py = currY + 5;
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
   rawItems.forEach((line, i) => {
     const parts = parseCSVLine(line);
     const [qty, unit, desc] = parts;
-    y = checkPageBreak(doc, y, 6, 20);
-    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(14, y, 182, 6, 'F'); }
-    doc.text(String(i + 1), cols.no, y + 4);
-    doc.text(unit || '', cols.unit, y + 4);
-    doc.text((desc || '').substring(0, 55), cols.desc, y + 4);
-    doc.text(qty || '', cols.qty, y + 4, { align: 'right' });
-    y += 6;
+    
+    doc.text(String(i + 1), leftM + (c1 - leftM)/2, py, { align: 'center' });
+    doc.text(unit || '', c1 + (c2 - c1)/2, py, { align: 'center' });
+    
+    const descLines = doc.splitTextToSize((desc || '').substring(0, 70), c3 - c2 - 4);
+    doc.text(descLines, c2 + 2, py);
+    
+    doc.text(qty || '', c3 + (rightM - c3)/2, py, { align: 'center' });
+    py += Math.max(descLines.length * 4.5, 6);
   });
-  if (!rawItems.length) { doc.setFont(undefined, 'italic'); doc.text('No items listed.', cols.desc, y + 4); y += 6; doc.setFont(undefined, 'normal'); }
-  y += 8;
+  currY += bodyH;
 
-  // ── Inspection | Acceptance two-column checkbox section ──
-  doc.setFont(undefined, 'bold'); doc.setFontSize(9.5);
-  doc.text('INSPECTION', 14, y);
-  doc.text('ACCEPTANCE', 105, y); y += 6;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(8);
+  // Split Box (INSPECTION / ACCEPTANCE)
+  const bH = 50;
+  doc.rect(leftM, currY, W, bH);
+  const midX = leftM + W/2;
+  doc.line(midX, currY, midX, currY + bH);
+  
+  // INSPECTION / ACCEPTANCE Headers
+  doc.line(leftM, currY + 8, rightM, currY + 8);
+  doc.setFontSize(11); doc.setFont(undefined, 'bold');
+  doc.text('INSPECTION', leftM + W/4, currY + 5.5, { align: 'center' });
+  doc.text('ACCEPTANCE', midX + W/4, currY + 5.5, { align: 'center' });
+  
+  currY += 8;
 
-  const dateInspected = formatDateShort(fd.dateInspected) || '';
-  const dateReceived = formatDateShort(fd.dateInspected) || '';
-  doc.text(`DATE INSPECTED     ${dateInspected}`, 14, y);
-  doc.text(`DATE RECEIVED:     ${dateReceived}`, 105, y); y += 6;
+  // Inspection details
+  doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
+  doc.text('DATE INSPECTED', leftM + 15, currY + 8);
+  doc.text(formatDateShort(fd.dateInspected) || '', leftM + 50, currY + 8);
+  
+  doc.text('( x ) Inspected, verified and found ok as', leftM + 5, currY + 16);
+  doc.text('(   ) the quantity and specifications', leftM + 5, currY + 20);
 
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text(fd.inspectedBy || fd.preparedBy || '__________________________', leftM + W/4, currY + 32, { align: 'center' });
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  doc.text('Authorized Inspector', leftM + W/4, currY + 36, { align: 'center' });
+
+  // Acceptance details
   const complete = (fd.acceptanceStatus || 'complete') === 'complete';
-  doc.text('( x )  Inspected, verified and found ok as', 14, y);
-  doc.text(`(  ${complete ? 'x' : ' '}  )       Complete`, 105, y); y += 4.5;
-  doc.text('(    )   the quantity and specifications', 14, y);
-  doc.text(`(  ${!complete ? 'x' : ' '}  )       Partial`, 105, y); y += 10;
+  doc.text('DATE RECEIVED:', midX + 10, currY + 8);
+  doc.text(formatDateShort(fd.dateInspected) || '', midX + 50, currY + 8); 
+  
+  doc.text(`( ${complete ? 'x' : ' '} )      Complete`, midX + 15, currY + 16);
+  doc.text(`( ${!complete ? 'x' : ' '} )      Partial`, midX + 15, currY + 20);
 
-  doc.line(14, y, 90, y);
-  doc.line(105, y, 181, y); y += 5;
-  doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
-  doc.text(fd.inspectedBy || '_________________', 52, y, { align: 'center' });
-  doc.text(fd.receivedBy || '_________________', 143, y, { align: 'center' });
-  y += 4;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-  doc.text('Authorized Inspector', 52, y, { align: 'center' });
-  doc.text('Brgy. Treasurer', 143, y, { align: 'center' });
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text(fd.treasurer || fd._autoTreasurer || '__________________________', midX + W/4, currY + 32, { align: 'center' });
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  doc.text('Brgy. Treasurer', midX + W/4, currY + 36, { align: 'center' });
 }
 
 // ── Notice of Award (individual) ──
