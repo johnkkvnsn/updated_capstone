@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Configuration — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>System Configuration</h2>
+            <p>Configure system-wide settings and parameters.</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+          <!-- General Settings -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="bi bi-gear" style="color:#1a3a6b;margin-right:6px;"></i>General Settings
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-group"><label>System Name</label><input type="text" id="cfg-name" class="form-control">
+              </div>
+              <div class="form-group"><label>Fiscal Year</label><input type="number" id="cfg-year" class="form-control"
+                  min="2020" max="2050"></div>
+              <div class="form-group"><label>Active Municipality</label><input type="text" id="cfg-muni"
+                  class="form-control"></div>
+              <div class="form-group"><label>Report Deadline</label><input type="date" id="cfg-deadline"
+                  class="form-control"></div>
+              <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+                <button class="btn btn-primary" onclick="saveConfig()"><i class="bi bi-check"></i> Save
+                  Settings</button>
+                <button class="btn btn-light" onclick="resetConfig()"><i class="bi bi-arrow-counterclockwise"></i>
+                  Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security Settings -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="bi bi-shield-lock" style="color:#1a3a6b;margin-right:6px;"></i>Security
+                Settings</div>
+            </div>
+            <div class="card-body">
+              <div class="form-group"><label>Session Timeout (minutes)</label><input type="number" id="cfg-timeout"
+                  class="form-control" min="5" max="120"></div>
+              <div class="form-group"><label>Minimum Password Length</label><input type="number" id="cfg-pwd-len"
+                  class="form-control" min="6" max="32"></div>
+              <div class="form-group"><label>Max File Upload Size (MB)</label><input type="number" id="cfg-file-size"
+                  class="form-control" min="1" max="100"></div>
+              <div class="form-group"><label>System Version</label><input type="text" id="cfg-version"
+                  class="form-control" readonly style="background:#f8fafc;"></div>
+              <div style="margin-top:1.25rem;">
+                <button class="btn btn-primary" onclick="saveConfig()"><i class="bi bi-check"></i> Save
+                  Settings</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barangay Management -->
+          <div class="card" style="grid-column:1/-1;">
+            <div class="card-header">
+              <div class="card-title"><i class="bi bi-houses" style="color:#1a3a6b;margin-right:6px;"></i>Barangay
+                Management
+                <span style="font-size:.75rem;color:#64748b;font-weight:400;margin-left:8px;">— Edit each barangay to
+                  configure its PDF letterhead (name, municipality, province, officials, codes)</span>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="showModal('add-brgy-modal')"><i class="bi bi-plus"></i>
+                Add Barangay</button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Barangay</th>
+                    <th>Municipality</th>
+                    <th>Province</th>
+                    <th>Region</th>
+                    <th>City Code</th>
+                    <th>Brgy Code</th>
+                    <th>Punong Barangay</th>
+                    <th>Treasurer</th>
+                    <th>SK Chairperson</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="brgy-list-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- System Info -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="bi bi-info-circle" style="color:#1a3a6b;margin-right:6px;"></i>System
+                Information</div>
+            </div>
+            <div class="card-body" style="font-size:.875rem;">
+              <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <div
+                  style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">System Name</span><span style="font-weight:600;">BFMSS</span>
+                </div>
+                <div
+                  style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">Version</span><span style="font-weight:600;"
+                    id="info-version">1.0.0</span>
+                </div>
+                <div
+                  style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">Total Users</span><span style="font-weight:600;" id="info-users">—</span>
+                </div>
+                <div
+                  style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">Total Reports</span><span style="font-weight:600;"
+                    id="info-reports">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:.5rem 0;">
+                  <span style="color:#64748b;">Audit Log Entries</span><span style="font-weight:600;"
+                    id="info-logs">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add Barangay Modal -->
+  <div class="modal-overlay" id="add-brgy-modal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header"><span class="modal-title"><i class="bi bi-plus-circle" style="margin-right:6px;"></i>Add
+          Barangay</span><button class="modal-close" onclick="hideModal('add-brgy-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom:1rem;"><i class="bi bi-info-circle"></i> &nbsp;These details
+          will appear on the <strong>official PDF letterhead</strong> of all generated BFR/SK reports for this barangay.
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Barangay Name *</label><input type="text" id="nb-name" class="form-control"
+              placeholder="e.g. Paule 1"></div>
+          <div class="form-group"><label>Municipality / City *</label><input type="text" id="nb-muni"
+              class="form-control" placeholder="e.g. Rizal"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Province *</label><input type="text" id="nb-province" class="form-control"
+              placeholder="e.g. Laguna"></div>
+          <div class="form-group"><label>Region</label><input type="text" id="nb-region" class="form-control"
+              placeholder="e.g. CALABARZON (Region IV-A)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>City Code <span style="font-size:.75rem;color:#64748b;">(for
+                BFR-7)</span></label><input type="text" id="nb-citycode" class="form-control" placeholder="e.g. 0435">
+          </div>
+          <div class="form-group"><label>Barangay Code <span style="font-size:.75rem;color:#64748b;">(for
+                BFR-7)</span></label><input type="text" id="nb-brgycode" class="form-control"
+              placeholder="e.g. 043519010"></div>
+        </div>
+        <div style="border-top:1px solid #e2e8f0;margin:1rem 0;padding-top:1rem;">
+          <p style="font-weight:600;font-size:.9rem;color:#1a3a6b;margin-bottom:.75rem;"><i class="bi bi-people"></i>
+            &nbsp;Barangay Officials (for signature blocks)</p>
+          <div class="form-row">
+            <div class="form-group"><label>Punong Barangay</label><input type="text" id="nb-punong" class="form-control"
+                placeholder="Full name"></div>
+            <div class="form-group"><label>Barangay Treasurer</label><input type="text" id="nb-treasurer"
+                class="form-control" placeholder="Full name"></div>
+          </div>
+          <div class="form-group"><label>SK Chairperson</label><input type="text" id="nb-skchair" class="form-control"
+              placeholder="Full name"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('add-brgy-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addBarangay()"><i class="bi bi-check"></i> Add Barangay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Barangay Modal -->
+  <div class="modal-overlay" id="edit-brgy-modal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header"><span class="modal-title"><i class="bi bi-pencil" style="margin-right:6px;"></i>Edit
+          Barangay Info</span><button class="modal-close" onclick="hideModal('edit-brgy-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom:1rem;"><i class="bi bi-info-circle"></i> &nbsp;These details
+          appear on the <strong>official PDF letterhead</strong> of all BFR/SK reports generated for this barangay.
+        </div>
+        <input type="hidden" id="eb-id">
+        <div class="form-row">
+          <div class="form-group"><label>Barangay Name *</label><input type="text" id="eb-name" class="form-control">
+          </div>
+          <div class="form-group"><label>Municipality / City *</label><input type="text" id="eb-muni"
+              class="form-control"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Province *</label><input type="text" id="eb-province" class="form-control">
+          </div>
+          <div class="form-group"><label>Region</label><input type="text" id="eb-region" class="form-control"
+              placeholder="e.g. CALABARZON (Region IV-A)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>City Code <span style="font-size:.75rem;color:#64748b;">(for
+                BFR-7)</span></label><input type="text" id="eb-citycode" class="form-control"></div>
+          <div class="form-group"><label>Barangay Code <span style="font-size:.75rem;color:#64748b;">(for
+                BFR-7)</span></label><input type="text" id="eb-brgycode" class="form-control"></div>
+        </div>
+        <div style="border-top:1px solid #e2e8f0;margin:1rem 0;padding-top:1rem;">
+          <p style="font-weight:600;font-size:.9rem;color:#1a3a6b;margin-bottom:.75rem;"><i class="bi bi-people"></i>
+            &nbsp;Barangay Officials (auto-filled in signature blocks)</p>
+          <div class="form-row">
+            <div class="form-group"><label>Punong Barangay</label><input type="text" id="eb-punong" class="form-control"
+                placeholder="Full name"></div>
+            <div class="form-group"><label>Barangay Treasurer</label><input type="text" id="eb-treasurer"
+                class="form-control" placeholder="Full name"></div>
+          </div>
+          <div class="form-group"><label>SK Chairperson</label><input type="text" id="eb-skchair" class="form-control"
+              placeholder="Full name"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('edit-brgy-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditBarangay()"><i class="bi bi-check"></i> Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['admin']);
+    (async () => {
+      if (user) {
+        await renderSidebar('config');
+        await renderTopbar('System Configuration', 'System settings and configuration');
+        await loadConfig();
+        loadBrgyList();
+        document.getElementById('info-users').textContent = (await DB.get('users')).length;
+        document.getElementById('info-reports').textContent = (await DB.get('reports')).length;
+        document.getElementById('info-logs').textContent = (await DB.get('audit_logs')).length;
+      }
+
+      async function loadConfig() {
+        const cfg = (await DB.find('system_config', { id: 1 })) || {};
+        document.getElementById('cfg-name').value = cfg.systemName || 'BFMSS';
+        document.getElementById('cfg-year').value = cfg.fiscalYear || 2026;
+        document.getElementById('cfg-muni').value = cfg.municipality || '';
+        document.getElementById('cfg-deadline').value = cfg.reportDeadline || '';
+        document.getElementById('cfg-timeout').value = cfg.sessionTimeout || 30;
+        document.getElementById('cfg-pwd-len').value = cfg.passwordMinLength || 8;
+        document.getElementById('cfg-file-size').value = cfg.maxFileUploadMB || 10;
+        document.getElementById('cfg-version').value = cfg.systemVersion || '1.0.0';
+        document.getElementById('info-version').textContent = cfg.systemVersion || '1.0.0';
+      }
+
+      async function saveConfig() {
+        await DB.update('system_config', 1, {
+          systemName: document.getElementById('cfg-name').value.trim(),
+          fiscalYear: parseInt(document.getElementById('cfg-year').value),
+          municipality: document.getElementById('cfg-muni').value.trim(),
+          reportDeadline: document.getElementById('cfg-deadline').value,
+          sessionTimeout: parseInt(document.getElementById('cfg-timeout').value),
+          passwordMinLength: parseInt(document.getElementById('cfg-pwd-len').value),
+          maxFileUploadMB: parseInt(document.getElementById('cfg-file-size').value),
+          systemVersion: document.getElementById('cfg-version').value,
+        });
+        await DB.log(user.id, 'UPDATE_CONFIG', 'Admin updated system configuration', 'Config');
+        showToast('System configuration saved!', 'success');
+      }
+
+      async function resetConfig() {
+        if (!confirm('Reset all settings to defaults?')) return;
+        await DB.update('system_config', 1, { fiscalYear: 2026, municipality: 'Rizal', reportDeadline: '2026-12-31', sessionTimeout: 30, passwordMinLength: 8, maxFileUploadMB: 10, systemName: 'BFMSS', systemVersion: '1.0.0' });
+        await loadConfig(); showToast('Settings reset to defaults.', 'info');
+      }
+
+      async function loadBrgyList() {
+        const tbody = document.getElementById('brgy-list-tbody');
+        const brgys = await DB.get('barangays');
+        if (!brgys.length) {
+          tbody.innerHTML = '<tr><td colspan="10" class="table-empty"><i class="bi bi-houses"></i> No barangays found</td></tr>';
+          return;
+        }
+        tbody.innerHTML = brgys.map(b => `<tr>
+    <td style="font-weight:700;color:#1a3a6b;">${b.name}</td>
+    <td>${b.municipality || '—'}</td>
+    <td>${b.province || '—'}</td>
+    <td style="font-size:.8rem;">${b.region || '—'}</td>
+    <td><span class="badge badge-primary" style="font-family:monospace;font-size:.75rem;">${b.cityCode || '—'}</span></td>
+    <td><span class="badge badge-primary" style="font-family:monospace;font-size:.75rem;">${b.barangayCode || '—'}</span></td>
+    <td style="font-size:.82rem;">${b.punongBarangay || '<em style="color:#94a3b8;">Not set</em>'}</td>
+    <td style="font-size:.82rem;">${b.treasurer || '<em style="color:#94a3b8;">Not set</em>'}</td>
+    <td style="font-size:.82rem;">${b.skChairperson || '<em style="color:#94a3b8;">Not set</em>'}</td>
+    <td>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-xs btn-primary" onclick="openEditBarangay(${b.id})"><i class="bi bi-pencil"></i> Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteBarangay(${b.id})"><i class="bi bi-trash"></i></button>
+      </div>
+    </td>
+  </tr>`).join('');
+      }
+
+      async function addBarangay() {
+        const name = document.getElementById('nb-name').value.trim();
+        const muni = document.getElementById('nb-muni').value.trim();
+        const prov = document.getElementById('nb-province').value.trim();
+        if (!name || !muni) { showToast('Barangay name and municipality are required.', 'error'); return; }
+        await DB.insert('barangays', {
+          name, municipality: muni, province: prov || 'Laguna',
+          region: document.getElementById('nb-region').value.trim(),
+          cityCode: document.getElementById('nb-citycode').value.trim(),
+          barangayCode: document.getElementById('nb-brgycode').value.trim(),
+          punongBarangay: document.getElementById('nb-punong').value.trim(),
+          treasurer: document.getElementById('nb-treasurer').value.trim(),
+          skChairperson: document.getElementById('nb-skchair').value.trim(),
+          contactNo: '', email: '',
+        });
+        hideModal('add-brgy-modal');
+        showToast('Barangay added! Its details will now appear on all generated PDF reports.', 'success');
+        loadBrgyList();
+      }
+
+      async function openEditBarangay(id) {
+        const b = await DB.getBarangay(id);
+        if (!b) return;
+        document.getElementById('eb-id').value = b.id;
+        document.getElementById('eb-name').value = b.name || '';
+        document.getElementById('eb-muni').value = b.municipality || '';
+        document.getElementById('eb-province').value = b.province || '';
+        document.getElementById('eb-region').value = b.region || '';
+        document.getElementById('eb-citycode').value = b.cityCode || '';
+        document.getElementById('eb-brgycode').value = b.barangayCode || '';
+        document.getElementById('eb-punong').value = b.punongBarangay || '';
+        document.getElementById('eb-treasurer').value = b.treasurer || '';
+        document.getElementById('eb-skchair').value = b.skChairperson || '';
+        showModal('edit-brgy-modal');
+      }
+
+      async function saveEditBarangay() {
+        const id = parseInt(document.getElementById('eb-id').value);
+        const name = document.getElementById('eb-name').value.trim();
+        const muni = document.getElementById('eb-muni').value.trim();
+        if (!name || !muni) { showToast('Barangay name and municipality are required.', 'error'); return; }
+        await DB.updateBarangay(id, {
+          name, municipality: muni,
+          province: document.getElementById('eb-province').value.trim(),
+          region: document.getElementById('eb-region').value.trim(),
+          cityCode: document.getElementById('eb-citycode').value.trim(),
+          barangayCode: document.getElementById('eb-brgycode').value.trim(),
+          punongBarangay: document.getElementById('eb-punong').value.trim(),
+          treasurer: document.getElementById('eb-treasurer').value.trim(),
+          skChairperson: document.getElementById('eb-skchair').value.trim(),
+        });
+        await DB.log(user.id, 'UPDATE_BARANGAY', `Updated barangay info for ${name}`, 'Config');
+        hideModal('edit-brgy-modal');
+        showToast(`Barangay ${name} updated! PDF letterhead will now use these details.`, 'success');
+        loadBrgyList();
+      }
+
+      async function deleteBarangay(id) {
+        const b = await DB.getBarangay(id);
+        if (!confirm(`Delete ${b?.name || 'this barangay'}? This cannot be undone.`)) return;
+        await DB.delete('barangays', id);
+        showToast('Barangay deleted.', 'warning');
+        loadBrgyList();
+      }
+    })();
+  </script>
+</body>
+
+</html>

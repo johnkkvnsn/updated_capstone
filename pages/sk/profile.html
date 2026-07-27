@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="main-content">
+    <header class="topbar" id="topbar"></header>
+    <main class="page-body">
+
+      <div class="page-header">
+        <div class="page-header-info"><h2>My Profile</h2><p>View and update your account information.</p></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:1.25rem;">
+        <!-- Profile Card -->
+        <div>
+          <div class="card" style="text-align:center;padding:2rem 1.25rem;">
+            <div id="avatar-circle" style="width:80px;height:80px;border-radius:50%;background:#1a3a6b;color:#fff;font-size:2rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;"></div>
+            <div id="profile-name" style="font-size:1.1rem;font-weight:800;"></div>
+            <div id="profile-role" style="font-size:.82rem;color:#64748b;margin-top:3px;"></div>
+            <div id="profile-brgy" style="font-size:.82rem;margin-top:4px;"></div>
+            <div id="profile-status" style="margin-top:.75rem;"></div>
+            <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.82rem;color:#64748b;">
+              <div><strong>Last Login:</strong> <span id="last-login"></span></div>
+              <div style="margin-top:4px;"><strong>Member Since:</strong> <span id="created-at"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><i class="bi bi-person-gear" style="color:#1a3a6b;margin-right:6px;"></i>Account Information</div></div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group"><label>Full Name <span style="color:#dc2626">*</span></label>
+                  <input type="text" id="p-name" class="form-control"></div>
+                <div class="form-group"><label>Role</label>
+                  <input type="text" id="p-role" class="form-control" readonly style="background:#f8fafc;"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Barangay</label>
+                  <input type="text" id="p-brgy" class="form-control" readonly style="background:#f8fafc;"></div>
+                <div class="form-group"><label>Municipality</label>
+                  <input type="text" id="p-municipality" class="form-control"></div>
+              </div>
+              <div class="form-group"><label>Email Address</label>
+                <input type="email" id="p-email" class="form-control"></div>
+              <div class="form-group"><label>Contact Number</label>
+                <input type="text" id="p-contact" class="form-control" placeholder="09XX XXX XXXX"></div>
+              <button class="btn btn-primary" onclick="updateProfile()"><i class="bi bi-check"></i> Update Profile</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem;">
+            <div class="card-header"><div class="card-title"><i class="bi bi-lock" style="color:#1a3a6b;margin-right:6px;"></i>Change Password</div></div>
+            <div class="card-body">
+              <div class="form-group"><label>Current Password</label>
+                <input type="password" id="p-current-pwd" class="form-control" placeholder="Enter current password"></div>
+              <div class="form-row">
+                <div class="form-group"><label>New Password</label>
+                  <input type="password" id="p-new-pwd" class="form-control" placeholder="Min 8 characters"></div>
+                <div class="form-group"><label>Confirm New Password</label>
+                  <input type="password" id="p-confirm-pwd" class="form-control" placeholder="Repeat new password"></div>
+              </div>
+              <button class="btn btn-outline" onclick="changePassword()"><i class="bi bi-shield-check"></i> Change Password</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../../assets/js/db.js"></script>
+<script src="../../assets/js/utils.js"></script>
+<script src="../../assets/js/sidebar.js"></script><script src="../../assets/js/chatbot.js"></script><script src="../../assets/js/enhancements.js"></script>
+<script>
+const user = requireAuth(['treasurer', 'sk_treasurer']);
+
+(async () => {
+if (user) {
+  await renderSidebar('profile');
+  await renderTopbar('My Profile', 'View and manage your account details');
+  loadProfile();
+}
+})();
+
+async function loadProfile() {
+  const brgy = user.barangayId ? await DB.getBarangay(user.barangayId) : null;
+  const initials = user.fullName.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('avatar-circle').textContent = initials;
+  document.getElementById('profile-name').textContent = user.fullName;
+  document.getElementById('profile-role').textContent = DB.getRoleLabel(user.roleId);
+  document.getElementById('profile-brgy').textContent = brgy ? `Brgy. ${brgy.name}, ${brgy.municipality}` : user.municipality;
+  document.getElementById('profile-status').innerHTML = statusBadge('active');
+  document.getElementById('last-login').textContent = formatDateTime(user.lastLogin) || 'First login';
+  document.getElementById('created-at').textContent = formatDateShort(user.createdAt);
+
+  document.getElementById('p-name').value = user.fullName;
+  document.getElementById('p-role').value = DB.getRoleLabel(user.roleId);
+  document.getElementById('p-brgy').value = brgy ? brgy.name : '—';
+  document.getElementById('p-municipality').value = user.municipality || '';
+  document.getElementById('p-email').value = user.email;
+  document.getElementById('p-contact').value = user.contactNumber || '';
+}
+
+async function updateProfile() {
+  const updated = {
+    fullName: document.getElementById('p-name').value.trim(),
+    email: document.getElementById('p-email').value.trim(),
+    municipality: document.getElementById('p-municipality').value.trim(),
+    contactNumber: document.getElementById('p-contact').value.trim(),
+  };
+  if (!updated.fullName || !updated.email) { showToast('Name and email are required.', 'error'); return; }
+  await DB.update('users', user.id, updated);
+  Object.assign(user, updated);
+  DB.setCurrentUser(user);
+  await DB.log(user.id, 'UPDATE_PROFILE', 'User updated their profile', 'Profile');
+  showToast('Profile updated successfully!', 'success');
+  loadProfile();
+}
+
+async function changePassword() {
+  const curr = document.getElementById('p-current-pwd').value;
+  const newPwd = document.getElementById('p-new-pwd').value;
+  const confirm = document.getElementById('p-confirm-pwd').value;
+  if (user.password !== btoa(curr)) { showToast('Current password is incorrect.', 'error'); return; }
+  if (newPwd.length < 8) { showToast('New password must be at least 8 characters.', 'error'); return; }
+  if (newPwd !== confirm) { showToast('Passwords do not match.', 'error'); return; }
+  await DB.update('users', user.id, { password: btoa(newPwd) });
+  user.password = btoa(newPwd);
+  DB.setCurrentUser(user);
+  await DB.log(user.id, 'CHANGE_PASSWORD', 'User changed their password', 'Profile');
+  document.getElementById('p-current-pwd').value = '';
+  document.getElementById('p-new-pwd').value = '';
+  document.getElementById('p-confirm-pwd').value = '';
+  showToast('Password changed successfully!', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SK Expenses — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>SK Expenses</h2>
+            <p>Record and manage Sangguniang Kabataan expenditures.</p>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" onclick="showModal('add-modal')"><i
+                class="bi bi-plus-lg"></i> New SK Expense</button></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-search"><i class="bi bi-search"></i><input type="text" class="form-control" id="search"
+                placeholder="Search..." oninput="filter()"></div>
+            <button class="btn btn-light btn-sm" onclick="exportData()"><i class="bi bi-download"></i> Export</button>
+            <button class="btn btn-excel btn-sm" onclick="exportExpensesExcel(user.barangayId,'sk')"><i
+                class="bi bi-file-earmark-excel"></i> Excel</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal-box">
+      <div class="modal-header"><span class="modal-title">Add SK Expense</span><button class="modal-close"
+          onclick="hideModal('add-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Description *</label><input type="text" id="f-desc" class="form-control"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Category</label><select id="f-cat" class="form-control">
+              <option value="Youth Programs">Youth Programs</option>
+              <option value="Sports Equipment">Sports Equipment</option>
+              <option value="School Supplies">School Supplies</option>
+              <option value="Events">Events & Activities</option>
+              <option value="Other">Other</option>
+            </select></div>
+          <div class="form-group"><label>Amount *</label><input type="number" id="f-amount" class="form-control"></div>
+        </div>
+        <div class="form-group"><label>Date Spent *</label><input type="date" id="f-date" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('add-modal')">Cancel</button>
+        <button class="btn btn-danger" onclick="save()"><i class="bi bi-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['sk_treasurer']);
+    let all = [];
+    (async () => {
+    if (user) { await renderSidebar('expenses'); await renderTopbar('SK Expenses', 'Manage SK expenditures'); document.getElementById('f-date').value = today(); load(); }
+    })();
+    async function load() { all = await DB.filter('sk_expenses', { barangayId: user.barangayId }); render(all); }
+    function filter() { const q = document.getElementById('search').value.toLowerCase(); render(all.filter(e => !q || e.description.toLowerCase().includes(q))); }
+    function render(data) {
+      document.getElementById('tbody').innerHTML = data.length
+        ? data.map((e, i) => `<tr><td>${i + 1}</td><td style="font-weight:600;">${e.description}</td><td><span class="badge badge-primary">${e.category}</span></td><td style="color:#dc2626;font-weight:700;">${formatCurrency(e.amount)}</td><td>${formatDateShort(e.dateSpent)}</td><td><button class="btn-icon" style="color:#dc2626;" onclick="del(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('')
+        : '<tr><td colspan="6" class="table-empty"><i class="bi bi-inbox"></i>No SK expense records</td></tr>';
+    }
+    async function save() {
+      const desc = document.getElementById('f-desc').value.trim(), amt = parseFloat(document.getElementById('f-amount').value), dt = document.getElementById('f-date').value;
+      if (!desc || !amt || !dt) { showToast('Fill required fields.', 'error'); return; }
+      await DB.insert('sk_expenses', { barangayId: user.barangayId, category: document.getElementById('f-cat').value, description: desc, amount: amt, dateSpent: dt, userId: user.id, createdAt: nowISO() });
+      hideModal('add-modal'); showToast('SK expense added!', 'success'); load();
+    }
+    function del(id) { confirmAction('Delete?', async () => { await DB.delete('sk_expenses', id); showToast('Deleted.', 'warning'); load(); }); }
+    function exportData() { exportCSV(all.map(e => ({ Description: e.description, Amount: e.amount, Date: e.dateSpent })), 'BFMSS_SK_Expenses'); }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Users — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="main-content">
+    <header class="topbar" id="topbar"></header>
+    <main class="page-body">
+
+      <div class="page-header">
+        <div class="page-header-info"><h2>Manage User Accounts</h2><p>View, edit, activate, or deactivate registered system users.</p></div>
+        <div class="page-header-actions">
+          <button class="btn btn-light btn-sm" onclick="exportUsers()"><i class="bi bi-download"></i> Export</button>
+          <button class="btn btn-primary" onclick="showModal('add-user-modal')"><i class="bi bi-person-plus"></i> Add User</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar-search"><i class="bi bi-search"></i>
+            <input type="text" class="form-control" id="search-users" placeholder="Search users..." oninput="filterUsers()">
+          </div>
+          <select class="filter-select" id="filter-role" onchange="filterUsers()">
+            <option value="">All Roles</option>
+            <option value="1">Super Admin</option><option value="2">Admin</option>
+            <option value="3">Barangay Treasurer</option><option value="4">SK Treasurer</option>
+          </select>
+          <select class="filter-select" id="filter-status" onchange="filterUsers()">
+            <option value="">All Status</option>
+            <option value="active">Active</option><option value="inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Barangay</th><th>Last Login</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="u-info" style="font-size:.82rem;color:#64748b;"></span>
+          <div id="u-btns" style="display:flex;gap:.35rem;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="add-user-modal">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">Add New User</span><button class="modal-close" onclick="hideModal('add-user-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="au-name" class="form-control" placeholder="Full name"></div>
+      <div class="form-group"><label>Email *</label><input type="email" id="au-email" class="form-control" placeholder="email@domain.com"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Role *</label>
+          <select id="au-role" class="form-control" onchange="toggleBrgy()">
+            <option value="3">Barangay Treasurer</option><option value="4">SK Treasurer</option>
+            <option value="2">Admin</option><option value="1">Super Admin</option>
+          </select>
+        </div>
+        <div class="form-group" id="au-brgy-group"><label>Barangay *</label>
+          <select id="au-brgy" class="form-control"><option value="">— Select —</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Temporary Password *</label><input type="password" id="au-pwd" class="form-control" placeholder="Min 8 chars" value="Temp@1234"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-light" onclick="hideModal('add-user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addUser()"><i class="bi bi-check"></i> Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="edit-user-modal">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">Edit User</span><button class="modal-close" onclick="hideModal('edit-user-modal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="eu-id">
+      <div class="form-group"><label>Full Name</label><input type="text" id="eu-name" class="form-control"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="eu-email" class="form-control"></div>
+      <div class="form-group"><label>Municipality</label><input type="text" id="eu-muni" class="form-control"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="eu-status" class="form-control"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-light" onclick="hideModal('edit-user-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateUser()"><i class="bi bi-check"></i> Update</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/db.js"></script>
+<script src="../../assets/js/utils.js"></script>
+<script src="../../assets/js/sidebar.js"></script><script src="../../assets/js/chatbot.js"></script><script src="../../assets/js/enhancements.js"></script>
+<script>
+const user = requireAuth(['admin']);
+let allUsers = []; let curPage = 1; const PER = 10;
+
+(async () => {
+if (user) {
+  await renderSidebar('users');
+  await renderTopbar('Manage Users', 'User account management and access control');
+  const brgySelect = document.getElementById('au-brgy');
+  (await DB.get('barangays')).forEach(b => { const o = document.createElement('option'); o.value=b.id; o.textContent=b.name; brgySelect.appendChild(o); });
+  load();
+}
+})();
+
+async function load() { allUsers = await DB.get('users'); renderData(allUsers); }
+
+function filterUsers() {
+  const q = document.getElementById('search-users').value.toLowerCase();
+  const role = document.getElementById('filter-role').value;
+  const st = document.getElementById('filter-status').value;
+  const filtered = allUsers.filter(u =>
+    (!q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
+    (!role || u.roleId === parseInt(role)) && (!st || u.status === st)
+  );
+  curPage = 1; renderData(filtered);
+}
+
+async function renderData(data) {
+  const paged = paginateTable(data, curPage, PER);
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = !paged.items.length
+    ? '<tr><td colspan="9" class="table-empty"><i class="bi bi-people"></i>No users found</td></tr>'
+    : (await Promise.all(paged.items.map(async (u, i) => {
+      const brgy = u.barangayId ? await DB.getBarangay(u.barangayId) : null;
+      return `<tr>
+        <td style="color:#94a3b8;font-size:.78rem;">${(curPage-1)*PER+i+1}</td>
+        <td style="font-weight:700;">${u.fullName}</td>
+        <td style="color:#64748b;">${u.email}</td>
+        <td><span class="badge badge-primary">${DB.getRoleLabel(u.roleId)}</span></td>
+        <td>${brgy?.name||'—'}</td>
+        <td>${formatDateShort(u.lastLogin)||'Never'}</td>
+        <td>${formatDateShort(u.createdAt)}</td>
+        <td>${statusBadge(u.status)}</td>
+        <td><div style="display:flex;gap:3px;">
+          <button class="btn-icon" onclick="editUser(${u.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon" onclick="toggleStatus(${u.id})" title="${u.status==='active'?'Deactivate':'Activate'}">
+            <i class="bi ${u.status==='active'?'bi-person-slash':'bi-person-check'}" style="color:${u.status==='active'?'#dc2626':'#16a34a'};"></i>
+          </button>
+        </div></td>
+      </tr>`;
+    }))).join('');
+
+  document.getElementById('u-info').textContent = `${Math.min((curPage-1)*PER+1,data.length)}–${Math.min(curPage*PER,data.length)} of ${data.length}`;
+  const btns = document.getElementById('u-btns'); btns.innerHTML = '';
+  for (let i=1;i<=paged.pages;i++) {
+    const b=document.createElement('button'); b.textContent=i;
+    b.className='btn btn-xs '+(i===curPage?'btn-primary':'btn-light');
+    b.onclick=()=>{curPage=i;renderData(data);}; btns.appendChild(b);
+  }
+}
+
+async function addUser() {
+  const name=document.getElementById('au-name').value.trim();
+  const email=document.getElementById('au-email').value.trim();
+  const roleId=parseInt(document.getElementById('au-role').value);
+  const brgyId=document.getElementById('au-brgy').value?parseInt(document.getElementById('au-brgy').value):null;
+  const pwd=document.getElementById('au-pwd').value;
+  if (!name||!email||!pwd) { showToast('Fill in all required fields.','error'); return; }
+  if (DB.findUser(email)) { showToast('Email already registered.','error'); return; }
+  await DB.insert('users',{fullName:name,email,password:btoa(pwd),roleId,barangayId:brgyId,municipality:'',status:'active',createdAt:nowISO(),lastLogin:null});
+  await DB.log(user.id,'ADD_USER',`Admin created user: ${name}`,'Users');
+  hideModal('add-user-modal'); showToast('User created!','success'); load();
+}
+
+async function editUser(id) {
+  const u=await DB.find('users', { id: id }); if(!u) return;
+  document.getElementById('eu-id').value=id;
+  document.getElementById('eu-name').value=u.fullName;
+  document.getElementById('eu-email').value=u.email;
+  document.getElementById('eu-muni').value=u.municipality||'';
+  document.getElementById('eu-status').value=u.status;
+  showModal('edit-user-modal');
+}
+
+async function updateUser() {
+  const id=parseInt(document.getElementById('eu-id').value);
+  await DB.update('users',id,{fullName:document.getElementById('eu-name').value.trim(),email:document.getElementById('eu-email').value.trim(),municipality:document.getElementById('eu-muni').value.trim(),status:document.getElementById('eu-status').value});
+  await DB.log(user.id,'UPDATE_USER',`Updated user #${id}`,'Users');
+  hideModal('edit-user-modal'); showToast('User updated!','success'); load();
+}
+
+async function toggleStatus(id) {
+  const u=await DB.find('users', { id: id }); if(!u) return;
+  const newStatus=u.status==='active'?'inactive':'active';
+  if(!confirm(`${newStatus==='inactive'?'Deactivate':'Activate'} this user?`)) return;
+  await DB.update('users',id,{status:newStatus});
+  await DB.log(user.id,'TOGGLE_USER_STATUS',`User ${id} set to ${newStatus}`,'Users');
+  showToast(`User ${newStatus}!`,newStatus==='active'?'success':'warning'); load();
+}
+
+function toggleBrgy() {
+  const role=parseInt(document.getElementById('au-role').value);
+  document.getElementById('au-brgy-group').style.display=(role===1||role===2)?'none':'block';
+}
+
+function exportUsers() {
+  exportCSV(allUsers.map(u=>({Name:u.fullName,Email:u.email,Role:DB.getRoleLabel(u.roleId),Status:u.status,Created:u.createdAt})),'BFMSS_Users');
+}
+</script>
+</body>
+</html>

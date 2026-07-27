@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Barangay Financial Management Streamlining System</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../assets/css/auth/login.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="login-page-body">
+    <script>
+        (function () {
+            if (window.location.protocol !== 'file:') return;
+            const match = window.location.pathname.match(/\/updated_capstone\/.*$/i);
+            const targetPath = match ? match[0] : '/updated_capstone';
+            const targetUrl = `http://localhost${targetPath}${window.location.search}${window.location.hash}`;
+            if (window.location.href !== targetUrl) {
+                window.location.replace(targetUrl);
+            }
+        })();
+    </script>
+
+    <main class="login-diagonal-bg min-vh-100 d-flex align-items-center justify-content-center p-3">
+
+        <section class="container">
+            <div class="row justify-content-center">
+                <article class="col-12 col-xl-10">
+
+                    <div class="card login-main-card border-0 shadow-lg overflow-hidden">
+                        <div class="row g-0 h-100 align-items-stretch">
+
+                            <div class="col-lg-6 d-flex flex-column justify-content-center p-4 p-md-5 login-form-area">
+
+                                <header class="d-flex align-items-center mb-4">
+                                    <figure
+                                        class="brand-icon-box bg-primary text-white rounded d-flex align-items-center justify-content-center me-2 mb-0">
+                                        <i class="bi bi-bank"></i>
+                                    </figure>
+                                    <h4 class="mb-0 fw-bold text-dark-custom">BFMSS</h4>
+                                </header>
+
+                                <h3 class="fw-bold text-dark-custom mb-1">Access your account.</h3>
+                                <p class="text-muted-custom small mb-4">Welcome back! Please enter your details.</p>
+
+                                <!-- Error Alert -->
+                                <div id="loginAlert" class="alert alert-danger d-none py-2 small"
+                                    style="display:none!important;" role="alert"></div>
+
+                                <form id="loginForm">
+
+                                    <fieldset class="mb-3 border-0 p-0">
+                                        <input type="email" class="form-control form-input p-3" id="loginEmail"
+                                            placeholder="Email Address" required>
+                                    </fieldset>
+
+                                    <fieldset class="mb-3 border-0 p-0 position-relative">
+                                        <input type="password" class="form-control form-input p-3 pe-5"
+                                            id="loginPassword" placeholder="Password" required>
+                                        <span
+                                            class="position-absolute top-50 end-0 translate-middle-y pe-3 eye-toggle-btn text-muted-custom"
+                                            id="togglePasswordBtn" style="cursor:pointer;">
+                                            <i class="bi bi-eye" id="eyeIcon"></i>
+                                        </span>
+                                    </fieldset>
+
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input shadow-none" type="checkbox" id="rememberMe">
+                                            <label class="form-check-label text-muted-custom small" for="rememberMe">
+                                                Remember me
+                                            </label>
+                                        </div>
+                                        <a href="forgot_password.html"
+                                            class="text-primary text-decoration-none small fw-semibold">Forgot
+                                            Password?</a>
+                                    </div>
+
+                                    <button type="submit"
+                                        class="btn btn-submit w-100 py-3 rounded-3 fw-semibold mb-4 text-white custom-btn-effect">
+                                        Login
+                                    </button>
+
+                                    <footer class="text-center">
+                                        <span class="text-muted-custom small">New Member? </span>
+                                        <a href="register.html"
+                                            class="text-primary text-decoration-none small fw-semibold">Register
+                                            here.</a>
+                                    </footer>
+                                </form>
+
+                                <!-- Demo Credentials -->
+                                <div class="mt-4 p-3 rounded-3" style="background:#f0f7ff;border:1px solid #bfdbfe;">
+                                    <p class="small fw-semibold text-primary mb-2"><i
+                                            class="bi bi-info-circle me-1"></i>Demo Accounts</p>
+                                    <div class="small text-muted" style="line-height:1.8;">
+                                        <div><strong>Super Admin:</strong> superadmin@bfmss.gov.ph / Admin@1234</div>
+                                        <div><strong>Admin:</strong> admin@bfmss.gov.ph / Admin@1234</div>
+                                        <div><strong>Treasurer:</strong> treasurer@paule1.gov.ph / Treasurer@1</div>
+                                        <div><strong>SK Treasurer:</strong> sk@paule1.gov.ph / SKTreasurer@1</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <figure class="col-lg-6 d-none d-lg-block p-0 m-0 position-relative">
+                                <img src="https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?q=80&w=1000&auto=format&fit=crop"
+                                    alt="Barangay Hall Concept" class="w-100 h-100 object-fit-cover login-side-image">
+                                <div class="image-dark-overlay"></div>
+                            </figure>
+
+                        </div>
+                    </div>
+
+                </article>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DB must load before login.js -->
+    <script src="../../assets/js/db.js"></script>
+    <script src="../../assets/js/auth/login.js"></script>
+
+    <script>
+        // Fix the alert display issue (CSS class vs style conflict)
+        document.addEventListener('DOMContentLoaded', () => {
+            const alert = document.getElementById('loginAlert');
+            if (alert) {
+                alert.style.removeProperty('display');
+                alert.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>

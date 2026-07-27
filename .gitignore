@@ -1,0 +1,11 @@
+# XAMPP / Apache / PHP specific
+error_log
+.DS_Store
+
+# Ignore uploaded user reports (we don't want these in the repository!)
+/uploads/reports/*
+!/uploads/reports/.gitkeep
+
+# Ignore IDE files
+.vscode/
+.idea/

@@ -1,0 +1,149 @@
+/* ==========================================================
+   CSS Reset
+   ========================================================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ==========================================================
+   Color Settings (Matches Landing Page)
+   ========================================================== */
+:root {
+    --bg-main: #ffffff;
+    --bg-secondary: #f2f4f8;
+    --text-main: #212529;
+    --text-muted: #64748b;
+    --card-bg: #ffffff;
+    
+    --input-bg: #f8fafc;
+    --input-border: #cbd5e1;
+
+    --primary-color: #1e3a8a; 
+    --accent-color: #2563eb;
+}
+
+[data-theme="dark"] {
+    --bg-main: #0f172a;
+    --bg-secondary: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --card-bg: #1e293b;
+    
+    --input-bg: #334155;
+    --input-border: #475569;
+
+    --primary-color: #60a5fa; 
+    --accent-color: #3b82f6;
+}
+
+/* ==========================================================
+   Base Rules
+   ========================================================== */
+.login-page-body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    overflow-x: hidden;
+}
+
+.text-dark-custom { color: var(--text-main) !important; }
+.text-muted-custom { color: var(--text-muted) !important; }
+.text-primary { color: var(--primary-color) !important; }
+
+/* ==========================================================
+   Thick Diagonal Background na may Puting Pagitan
+   ========================================================== */
+.login-diagonal-bg {
+    /* Ang background ay may tatlong bahagi: light gray sa kaliwa, puti sa gitna, at blue sa kanan */
+    background: linear-gradient(105deg, 
+        var(--bg-secondary) 47%, 
+        #ffffff 47%, 
+        #ffffff 51%, 
+        var(--primary-color) 51%
+    );
+}
+
+/* ==========================================================
+   Form Card and Layout
+   ========================================================== */
+.login-main-card {
+    min-height: 600px;
+    border-radius: 20px !important;
+    background-color: var(--card-bg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+.login-form-area {
+    background-color: var(--card-bg);
+}
+
+.brand-icon-box {
+    width: 36px;
+    height: 36px;
+}
+
+/* ==========================================================
+   Inputs
+   ========================================================== */
+.form-input {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-main);
+    border-radius: 8px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-input:focus {
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    outline: none;
+}
+
+/* Eye Toggle Button */
+.eye-toggle-btn {
+    cursor: pointer;
+    z-index: 10;
+    transition: color 0.3s ease;
+}
+
+.eye-toggle-btn:hover {
+    color: var(--accent-color) !important;
+}
+
+/* ==========================================================
+   Buttons
+   ========================================================== */
+.btn-submit {
+    background-color: var(--accent-color);
+    border: none;
+}
+
+.btn-submit:hover {
+    background-color: var(--primary-color);
+}
+
+.custom-btn-effect { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.custom-btn-effect:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);
+}
+
+/* ==========================================================
+   Right Side Image
+   ========================================================== */
+.login-side-image {
+    object-position: center;
+}
+
+.image-dark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3); /* Dims the image slightly so it looks premium */
+}

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Record Expenses — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>Record Expenses</h2>
+            <p>Track and manage all barangay expenditures and disbursements.</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="showModal('add-exp-modal')"><i class="bi bi-plus-lg"></i> New
+              Expense</button>
+          </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns:1fr;margin-bottom:1.25rem;">
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+              <div class="stat-icon red"><i class="bi bi-cash"></i></div>
+              <div>
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value" id="total-exp-val" style="font-size:1.2rem;">₱ 0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-search">
+              <i class="bi bi-search"></i>
+              <input type="text" class="form-control" id="search-exp" placeholder="Search expenses..."
+                oninput="filterTable()">
+            </div>
+            <select class="filter-select" id="filter-cat" onchange="filterTable()">
+              <option value="">All Categories</option>
+              <option value="Personnel Services">Personnel Services</option>
+              <option value="Maintenance & Operations">Maintenance & Operations</option>
+              <option value="Capital Outlay">Capital Outlay</option>
+              <option value="Social Services">Social Services</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+            <button class="btn btn-light btn-sm" onclick="exportExpCSV()"><i class="bi bi-download"></i> Export</button>
+            <button class="btn btn-excel btn-sm" onclick="exportExpensesExcel(user.barangayId,'treasurer')"><i
+                class="bi bi-file-earmark-excel"></i> Excel</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Date Spent</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="exp-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card-footer" style="display:flex;align-items:center;justify-content:space-between;">
+            <span id="exp-pagination-info" style="font-size:.82rem;color:#64748b;"></span>
+            <div id="exp-pagination-btns" style="display:flex;gap:.35rem;"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add Expense Modal -->
+  <div class="modal-overlay" id="add-exp-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-plus-circle" style="margin-right:6px;"></i>Add Expense</span>
+        <button class="modal-close" onclick="hideModal('add-exp-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Description <span style="color:#dc2626">*</span></label>
+          <input type="text" id="exp-desc" class="form-control" placeholder="e.g. Salaries & Wages April...">
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Category <span style="color:#dc2626">*</span></label>
+            <select id="exp-cat" class="form-control">
+              <option value="">— Select —</option>
+              <option value="Personnel Services">Personnel Services</option>
+              <option value="Maintenance & Operations">Maintenance & Operations</option>
+              <option value="Capital Outlay">Capital Outlay</option>
+              <option value="Social Services">Social Services</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Amount (₱) <span style="color:#dc2626">*</span></label>
+            <input type="number" id="exp-amount" class="form-control" placeholder="0.00" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="form-group"><label>Date Spent <span style="color:#dc2626">*</span></label>
+          <input type="date" id="exp-date" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('add-exp-modal')">Cancel</button>
+        <button class="btn btn-danger" onclick="saveExpense()"><i class="bi bi-check"></i> Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Expense Modal -->
+  <div class="modal-overlay" id="edit-exp-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-pencil" style="margin-right:6px;"></i>Edit Expense</span>
+        <button class="modal-close" onclick="hideModal('edit-exp-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-exp-id">
+        <div class="form-group"><label>Description</label><input type="text" id="edit-exp-desc" class="form-control">
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Category</label>
+            <select id="edit-exp-cat" class="form-control">
+              <option value="Personnel Services">Personnel Services</option>
+              <option value="Maintenance & Operations">Maintenance & Operations</option>
+              <option value="Capital Outlay">Capital Outlay</option>
+              <option value="Social Services">Social Services</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Amount (₱)</label><input type="number" id="edit-exp-amount"
+              class="form-control"></div>
+        </div>
+        <div class="form-group"><label>Date Spent</label><input type="date" id="edit-exp-date" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('edit-exp-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="updateExpense()"><i class="bi bi-check"></i> Update</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['treasurer']);
+    let allExp = []; let curPage = 1; const PER = 10;
+
+    (async () => {
+    if (user) {
+      await renderSidebar('expenses');
+      await renderTopbar('Record Expenses', 'Manage barangay expenditures and disbursements');
+      document.getElementById('exp-date').value = today();
+      load();
+    }
+    })();
+
+    async function load() {
+      allExp = await DB.filter('expenses', { barangayId: user.barangayId });
+      document.getElementById('total-exp-val').textContent = formatCurrency(allExp.reduce((s, e) => s + e.amount, 0));
+      renderData(allExp);
+    }
+
+    function filterTable() {
+      const q = document.getElementById('search-exp').value.toLowerCase();
+      const cat = document.getElementById('filter-cat').value;
+      const filtered = allExp.filter(e =>
+        (!q || e.description.toLowerCase().includes(q)) && (!cat || e.category === cat)
+      );
+      curPage = 1; renderData(filtered);
+    }
+
+    function renderData(data) {
+      const paged = paginateTable(data, curPage, PER);
+      const tbody = document.getElementById('exp-tbody');
+      tbody.innerHTML = !paged.items.length
+        ? '<tr><td colspan="6" class="table-empty"><i class="bi bi-inbox"></i>No expense records found</td></tr>'
+        : paged.items.map((e, i) => `<tr>
+        <td style="color:#94a3b8;font-size:.8rem;">${(curPage - 1) * PER + i + 1}</td>
+        <td style="font-weight:600;">${e.description}</td>
+        <td><span class="badge badge-primary">${e.category}</span></td>
+        <td style="font-weight:700;color:#dc2626;">${formatCurrency(e.amount)}</td>
+        <td>${formatDateShort(e.dateSpent)}</td>
+        <td><div style="display:flex;gap:4px;">
+          <button class="btn-icon" onclick="editExpense(${e.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon" style="color:#dc2626;" onclick="deleteExpense(${e.id})" title="Delete"><i class="bi bi-trash"></i></button>
+        </div></td>
+      </tr>`).join('');
+
+      document.getElementById('exp-pagination-info').textContent = `Showing ${Math.min((curPage - 1) * PER + 1, data.length)}–${Math.min(curPage * PER, data.length)} of ${data.length}`;
+      const btns = document.getElementById('exp-pagination-btns'); btns.innerHTML = '';
+      for (let i = 1; i <= paged.pages; i++) {
+        const b = document.createElement('button'); b.textContent = i;
+        b.className = 'btn btn-xs ' + (i === curPage ? 'btn-primary' : 'btn-light');
+        b.onclick = () => { curPage = i; renderData(data); }; btns.appendChild(b);
+      }
+    }
+
+    async function saveExpense() {
+      const desc = document.getElementById('exp-desc').value.trim();
+      const cat = document.getElementById('exp-cat').value;
+      const amount = parseFloat(document.getElementById('exp-amount').value);
+      const date = document.getElementById('exp-date').value;
+      if (!desc || !cat || !amount || !date) { showToast('Please fill in all required fields.', 'error'); return; }
+      await DB.insert('expenses', { barangayId: user.barangayId, category: cat, description: desc, amount, dateSpent: date, status: 'approved', userId: user.id, createdAt: nowISO() });
+      await DB.log(user.id, 'ADD_EXPENSE', `Added expense: ${desc} - ₱${amount}`, 'Expenses');
+      hideModal('add-exp-modal');
+      showToast('Expense added successfully!', 'success');
+      load();
+    }
+
+    async function editExpense(id) {
+      const e = await DB.find('expenses', { id: id }); if (!e) return;
+      document.getElementById('edit-exp-id').value = id;
+      document.getElementById('edit-exp-desc').value = e.description;
+      document.getElementById('edit-exp-cat').value = e.category;
+      document.getElementById('edit-exp-amount').value = e.amount;
+      document.getElementById('edit-exp-date').value = e.dateSpent;
+      showModal('edit-exp-modal');
+    }
+
+    async function updateExpense() {
+      const id = parseInt(document.getElementById('edit-exp-id').value);
+      await DB.update('expenses', id, {
+        description: document.getElementById('edit-exp-desc').value.trim(),
+        category: document.getElementById('edit-exp-cat').value,
+        amount: parseFloat(document.getElementById('edit-exp-amount').value),
+        dateSpent: document.getElementById('edit-exp-date').value,
+      });
+      await DB.log(user.id, 'UPDATE_EXPENSE', `Updated expense #${id}`, 'Expenses');
+      hideModal('edit-exp-modal'); showToast('Expense updated!', 'success'); load();
+    }
+
+    async function deleteExpense(id) {
+      confirmAction('Delete this expense record?', async () => {
+        await DB.delete('expenses', id);
+        await DB.log(user.id, 'DELETE_EXPENSE', `Deleted expense #${id}`, 'Expenses');
+        showToast('Expense deleted.', 'warning'); load();
+      });
+    }
+
+    function exportExpCSV() {
+      exportCSV(allExp.map(e => ({ Description: e.description, Category: e.category, Amount: e.amount, Date: e.dateSpent })), 'BFMSS_Expenses');
+    }
+  </script>
+</body>
+
+</html>

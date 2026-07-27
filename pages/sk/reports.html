@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SK Reports — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>SK Generate Reports</h2>
+            <p>Generate Daily, Monthly, Quarterly, or Yearly SK financial reports — figures are computed automatically
+              from your SK income & expense records.</p>
+          </div>
+        </div>
+
+        <!-- SK Report Type Cards (Official COA/SK Templates) -->
+        <div class="page-header-info" style="margin-bottom:.75rem;">
+          <p style="font-size:.8rem;color:#64748b;"><i class="bi bi-info-circle" style="color:#1a3a6b;"></i> &nbsp;All
+            SK reports follow the official templates from <strong>SK Paule 1, Rizal, Laguna</strong>. Data is
+            auto-computed from recorded SK transactions.</p>
+        </div>
+        <div class="report-cards-grid section-gap">
+
+          <div class="report-card">
+            <div class="report-card-header">
+              <div class="report-card-icon"><i class="bi bi-journal-text"></i></div>
+              <div class="report-card-title">SK Cashbook</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Chronological ledger of all SK collections and disbursements with running
+                balance — Daily, Monthly, Quarterly, or Yearly.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-primary" onclick="doQuickDownload('sk_cashbook')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('sk_cashbook')"><i class="bi bi-eye"></i>
+                  Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0369a1,#0284c7);">
+              <div class="report-card-icon"><i class="bi bi-receipt"></i></div>
+              <div class="report-card-title">SK Disbursement Voucher</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Official SK DV with payee info, particulars, tax deductions (3% Non-VAT, 1%
+                Withholding), and three-party certification block.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#0284c7;color:#fff;"
+                  onclick="doQuickDownload('sk_disbursement_voucher')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('sk_disbursement_voucher')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#b45309,#f59e0b);">
+              <div class="report-card-icon"><i class="bi bi-cart3"></i></div>
+              <div class="report-card-title">SK Abstract of Quotations</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Price comparison table for up to 3 suppliers with SK Councilor and
+                Chairperson signature block — matches Paule 1 template.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#f59e0b;color:#fff;"
+                  onclick="doQuickDownload('sk_abstract_quotations')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('sk_abstract_quotations')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);">
+              <div class="report-card-icon"><i class="bi bi-file-earmark-text"></i></div>
+              <div class="report-card-title">SK Liquidation Report</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Liquidation of SK fund utilization for a Daily/Monthly/Quarterly/Yearly
+                period — approved disbursements only.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#7c3aed;color:#fff;"
+                  onclick="doQuickDownload('sk_liquidation_report')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('sk_liquidation_report')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#991b1b,#dc2626);">
+              <div class="report-card-icon"><i class="bi bi-bank"></i></div>
+              <div class="report-card-title">SK Financial Statement</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Statement of SK fund position — beginning balance, income, disbursements,
+                and ending cash balance for any period.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-danger" onclick="doQuickDownload('sk_financial_statement')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('sk_financial_statement')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+          <div class="report-card">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0f766e,#16a34a);">
+              <div class="report-card-icon"><i class="bi bi-wallet2"></i></div>
+              <div class="report-card-title">Fund Status &amp; Budget Utilization</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Summary of total budget, income, expenses, net balance and allocation
+                utilization for SK or Barangay funds.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-success" onclick="doQuickDownload('fund_status')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('fund_status')"><i class="bi bi-eye"></i>
+                  Preview</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Previous Reports -->
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+            <div class="card-title"><i class="bi bi-folder2-open" style="color:#1a3a6b;margin-right:6px;"></i>Submitted
+              SK Reports</div>
+            <div class="search-bar"><i class="bi bi-search"></i><input type="text" id="search-reports"
+                placeholder="Search reports..." oninput="liveSearch('search-reports','reports-list-tbody')"></div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Period</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reports-list-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Report Generator Modal -->
+  <div class="modal-overlay" id="report-modal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <span class="modal-title" id="report-modal-title"><i class="bi bi-file-earmark-text"
+            style="margin-right:6px;"></i>Generate Report</span>
+        <button class="modal-close" onclick="hideModal('report-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom:1rem;">
+          <i class="bi bi-info-circle" style="margin-right:6px;"></i>
+          Choose a Report Frequency (Daily, Monthly, Quarterly, Yearly, or Custom Range) — the period and all SK
+          financial figures below will be <strong>computed automatically</strong> from your records.
+        </div>
+        <div id="report-form-fields"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('report-modal')">Cancel</button>
+        <button class="btn btn-outline" onclick="doDownloadPDF()"><i class="bi bi-file-earmark-pdf"></i> Download
+          PDF</button>
+        <button class="btn btn-primary" onclick="doDownloadZIP()"><i class="bi bi-file-zip"></i> Download ZIP</button>
+        <button class="btn btn-secondary" onclick="doSubmitReport()"><i class="bi bi-send"></i> Submit to Super
+          Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script src="../../assets/js/reports.js"></script>
+  <script>
+    const user = requireAuth(['sk_treasurer']);
+    let currentReportType = null;
+
+    (async () => {
+    if (user) {
+      await renderSidebar('reports');
+      await renderTopbar('SK Reports', 'Generate and submit SK financial reports — automatic Daily / Monthly / Yearly');
+      loadReportsList();
+    }
+    })();
+
+    const RTYPE_LABEL = { sk_cashbook: 'SK Cashbook', sk_disbursement_voucher: 'SK Disbursement Voucher', sk_abstract_quotations: 'SK Abstract of Quotations', sk_liquidation_report: 'SK Liquidation Report', sk_financial_statement: 'SK Financial Statement' };
+
+    async function loadReportsList() {
+      const reports = await DB.filter('reports', { barangayId: user.barangayId });
+      const tbody = document.getElementById('reports-list-tbody');
+      if (!reports.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="table-empty"><i class="bi bi-folder"></i>No SK reports submitted yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = reports
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+        .map(r => `<tr>
+    <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.title}">${r.title}</td>
+    <td><span class="badge badge-primary" style="font-size:.72rem;">${RTYPE_LABEL[r.type] || r.type}</span></td>
+    <td style="font-size:.85rem;">${r.period || '—'}</td>
+    <td style="font-size:.82rem;">${formatDateShort(r.submittedAt)}</td>
+    <td>
+      <span class="badge ${r.status === 'approved' ? 'badge-approved' : r.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}" style="font-size:.72rem;">
+        ${r.status === 'approved' ? '✓ Approved' : r.status === 'rejected' ? '✗ Rejected' : '⏳ Pending'}
+      </span>
+    </td>
+    <td>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn btn-xs btn-outline" onclick="redownloadReport(${r.id})" title="Re-download PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+        ${r.status === 'rejected' ? `<button class="btn btn-xs btn-primary" onclick="resubmitReport(${r.id})" title="Re-submit"><i class="bi bi-send"></i> Re-submit</button>` : ''}
+        ${r.notes ? `<button class="btn btn-xs btn-light" onclick="showReportNotes('${(r.notes || '').replace(/'/g, '&#39;')}')" title="View Notes"><i class="bi bi-chat-text"></i></button>` : ''}
+      </div>
+    </td>
+  </tr>`).join('');
+    }
+
+    // ── Required fields per SK report type for validation ────────────
+    const SK_REQUIRED_FIELDS = {
+      sk_cashbook: { 'rf-period': 'Reporting Period', 'rf-skTreasurer': 'SK Treasurer Name' },
+      sk_disbursement_voucher: { 'rf-dvNumber': 'DV No.', 'rf-dvDate': 'Date', 'rf-payee': 'Payee', 'rf-particular': 'Particulars', 'rf-amount': 'Amount', 'rf-skTreasurer': 'SK Treasurer', 'rf-skChairperson': 'SK Chairperson' },
+      sk_abstract_quotations: { 'rf-implementingOffice': 'Implementing Office', 'rf-aqDate': 'Date', 'rf-modeOfProcurement': 'Mode of Procurement', 'rf-suppliers': 'Suppliers', 'rf-items': 'Items', 'rf-skTreasurer': 'SK Treasurer', 'rf-skChairperson': 'SK Chairperson' },
+      sk_liquidation_report: { 'rf-period': 'Period Covered', 'rf-fundSource': 'Fund Source', 'rf-preparedBy': 'Prepared By (SK Treasurer)', 'rf-approvedBy': 'Approved By (SK Chairperson)' },
+      sk_financial_statement: { 'rf-period': 'Period Covered', 'rf-preparedBy': 'Prepared By (SK Treasurer)', 'rf-approvedBy': 'Approved By (SK Chairperson)' },
+    };
+
+    function validateReportForm(type) {
+      const required = SK_REQUIRED_FIELDS[type] || {};
+      let valid = true;
+      document.querySelectorAll('.field-error').forEach(e => e.remove());
+      document.querySelectorAll('.input-error').forEach(e => e.classList.remove('input-error'));
+
+      for (const [fieldId, label] of Object.entries(required)) {
+        const el = document.getElementById(fieldId);
+        if (!el) continue;
+        const val = el.value.trim();
+        if (!val) {
+          el.classList.add('input-error');
+          const err = document.createElement('div');
+          err.className = 'field-error';
+          err.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${label} is required.`;
+          el.parentNode.insertBefore(err, el.nextSibling);
+          if (valid) el.focus();
+          valid = false;
+        }
+      }
+
+      // Extra: amount must be positive for DV
+      if (type === 'sk_disbursement_voucher') {
+        const amtEl = document.getElementById('rf-amount');
+        if (amtEl && (isNaN(parseFloat(amtEl.value)) || parseFloat(amtEl.value) <= 0)) {
+          amtEl.classList.add('input-error');
+          const err = document.createElement('div');
+          err.className = 'field-error';
+          err.innerHTML = '<i class="bi bi-exclamation-circle"></i> Amount must be greater than ₱ 0.00.';
+          amtEl.parentNode.insertBefore(err, amtEl.nextSibling);
+          if (valid) amtEl.focus();
+          valid = false;
+        }
+      }
+
+      if (!valid) showToast('Please fill in all required fields before submitting.', 'error');
+      return valid;
+    }
+
+    async function openReportModal(type) {
+      currentReportType = type;
+      // SK types are in SK_REPORT_TYPES, not REPORT_TYPES
+      const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+      const cfg = allTypes[type] || {};
+      const brgy = await DB.getBarangay(user.barangayId);
+
+      document.getElementById('report-modal-title').innerHTML =
+        `<i class="bi ${cfg.icon || 'bi-file-earmark-text'}" style="margin-right:6px;"></i>SK ${cfg.label || type}`;
+
+      renderReportFormFields(document.getElementById('report-form-fields'), type, {
+        periodType: 'monthly',
+        skTreasurer: brgy?.treasurer || user.fullName,
+        skChairperson: brgy?.skChairperson || '',
+        preparedBy: brgy?.treasurer || user.fullName,
+        approvedBy: brgy?.skChairperson || '',
+        userFullName: user.fullName,
+      });
+      showModal('report-modal');
+    }
+
+    function getFormData() {
+      return collectReportFormData(currentReportType);
+    }
+
+    async function doDownloadPDF() {
+      if (!validateReportForm(currentReportType)) return;
+      const fd = getFormData();
+      await downloadReport(currentReportType, fd, user.barangayId, 'sk');
+    }
+
+    async function doQuickDownload(type) {
+      const brgy = await DB.getBarangay(user.barangayId) || {};
+      const fd = {
+        periodType: 'monthly',
+        period: computePeriodRange('monthly').label,
+        preparedBy: brgy.treasurer || user.fullName,
+        approvedBy: brgy.skChairperson || '',
+        fiscalYear: new Date().getFullYear(),
+      };
+      await downloadReport(type, fd, user.barangayId, 'sk');
+    }
+
+    async function doDownloadZIP() {
+      if (!validateReportForm(currentReportType)) return;
+      const fd = getFormData();
+      showToast('Preparing ZIP package...', 'info');
+      await downloadReportAsZip(currentReportType, fd, user.barangayId, 'sk');
+    }
+
+    async function doSubmitReport() {
+      if (!validateReportForm(currentReportType)) return;
+
+      const fd = getFormData();
+      const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+      const cfg = allTypes[currentReportType] || {};
+      const brgy = await DB.getBarangay(user.barangayId);
+      const period = fd.period || fd.dvDate || today();
+      const title = `SK ${cfg.label || currentReportType} — ${period}`;
+
+      // Check if this is a re-submission
+      const resubmitId = document.getElementById('report-form-fields')?.dataset?.resubmitId;
+      
+      showToast('Generating secure report file...', 'info');
+      const blob = await getReportBlob(currentReportType, fd, user.barangayId, 'sk');
+      
+      const formDataUpload = new FormData();
+      formDataUpload.append('pdf_file', blob, 'report.pdf');
+      
+      const metadata = {
+        resubmitId: resubmitId || null,
+        barangayId: user.barangayId,
+        module: 'sk',
+        title: title,
+        type: currentReportType,
+        period: period,
+        data: fd
+      };
+      formDataUpload.append('metadata', JSON.stringify(metadata));
+
+      const res = await fetch('/updated_capstone/api/upload_report.php', {
+        method: 'POST',
+        body: formDataUpload
+      });
+      const uploadResult = await res.json();
+      if(uploadResult.status !== 'success') {
+          throw new Error(uploadResult.message || 'Upload failed');
+      }
+
+      if (resubmitId) {
+        delete document.getElementById('report-form-fields').dataset.resubmitId;
+      }
+
+      // ── Notify ALL Super Admins ──
+      const superAdmins = await DB.filter('users', { roleId: 1 && u.status === 'active' });
+      if (superAdmins.length === 0) {
+        console.warn('No active super admins found to notify.');
+      }
+      superAdmins.forEach(sa => {
+        DB.notify(
+          sa.id,
+          '📋 New SK Report Submitted',
+          `SK ${cfg.label || currentReportType} submitted by ${user.fullName} from Barangay ${brgy?.name || ''} is pending your review.`,
+          'info'
+        );
+      });
+
+      // ── Notify the SK Treasurer themselves (confirmation) ──
+      DB.notify(
+        user.id,
+        '✅ SK Report Submitted Successfully',
+        `Your SK ${cfg.label || currentReportType} has been submitted and is now pending Super Admin review.`,
+        'success'
+      );
+
+      // Audit log
+      await DB.log(user.id, 'SUBMIT_REPORT', `Submitted SK ${cfg.label || currentReportType} for ${brgy?.name || ''}`, 'SK Reports');
+
+      hideModal('report-modal');
+      showToast('SK Report submitted! Super Admin has been notified.', 'success');
+      loadReportsList();
+
+      // Update notification badge immediately
+      updateNotifBadge();
+      renderNotifs();
+
+      // Auto download ZIP
+      downloadReportAsZip(currentReportType, fd, user.barangayId, 'sk');
+    }
+
+    function previewReport(type) {
+      openReportModal(type);
+    }
+
+    async function redownloadReport(id) {
+      const r = await DB.find('reports', { id: id });
+      if (r) downloadReport(r.type, r.data || {}, r.barangayId, 'sk');
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>Audit Logs</h2>
+            <p>Municipality-wide system activity and access trail.</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-light btn-sm" onclick="exportLogs()"><i class="bi bi-download"></i> Export
+              CSV</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-search"><i class="bi bi-search"></i>
+              <input type="text" class="form-control" id="search-logs" placeholder="Search logs..."
+                oninput="filterLogs()">
+            </div>
+            <select class="filter-select" id="filter-module" onchange="filterLogs()">
+              <option value="">All Modules</option>
+              <option value="Authentication">Authentication</option>
+              <option value="Income">Income</option>
+              <option value="Expenses">Expenses</option>
+              <option value="Reports">Reports</option>
+              <option value="Profile">Profile</option>
+            </select>
+            <select class="filter-select" id="filter-brgy" onchange="filterLogs()">
+              <option value="">All Barangays</option>
+            </select>
+            <input type="date" class="filter-select" id="filter-date" onchange="filterLogs()" title="Filter by date">
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Barangay</th>
+                  <th>Action</th>
+                  <th>Description</th>
+                  <th>Module</th>
+                  <th>IP Address</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+            <span id="log-info" style="font-size:.82rem;color:#64748b;"></span>
+            <div id="log-btns" style="display:flex;gap:.35rem;"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['super_admin']);
+    let allLogs = []; let curPage = 1; const PER = 15;
+
+    const ACTION_COLORS = { LOGIN: 'badge-success', LOGOUT: 'badge-secondary', LOGIN_FAILED: 'badge-danger', ADD_INCOME: 'badge-info', UPDATE_INCOME: 'badge-info', DELETE_INCOME: 'badge-danger', ADD_EXPENSE: 'badge-warning', UPDATE_EXPENSE: 'badge-warning', DELETE_EXPENSE: 'badge-danger', SUBMIT_REPORT: 'badge-primary', APPROVE_REPORT: 'badge-success', REJECT_REPORT: 'badge-danger', UPDATE_PROFILE: 'badge-info', CHANGE_PASSWORD: 'badge-warning', REGISTER: 'badge-success', GENERATE_CONSOLIDATED: 'badge-primary' };
+
+    (async () => {
+      if (user) {
+        await renderSidebar('audit');
+        await renderTopbar('Audit Logs', 'System-wide activity and security trail');
+
+        const brgyFilter = document.getElementById('filter-brgy');
+        (await DB.get('barangays')).forEach(b => { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; brgyFilter.appendChild(o); });
+
+        load();
+      }
+    })();
+
+    async function load() {
+      allLogs = (await DB.get('audit_logs')).reverse();
+      renderData(allLogs);
+    }
+
+    async function filterLogs() {
+      const q = document.getElementById('search-logs').value.toLowerCase();
+      const mod = document.getElementById('filter-module').value;
+      const brgy = document.getElementById('filter-brgy').value;
+      const date = document.getElementById('filter-date').value;
+
+      const filtered = [];
+      for (const l of allLogs) {
+        const logUser = await DB.find('users', { id: l.userId });
+        const matchQ = !q || l.description.toLowerCase().includes(q) || l.action.toLowerCase().includes(q) || (logUser?.fullName || '').toLowerCase().includes(q);
+        const matchMod = !mod || l.module === mod;
+        const matchBrgy = !brgy || (logUser?.barangayId === parseInt(brgy));
+        const matchDate = !date || l.createdAt.startsWith(date);
+        if (matchQ && matchMod && matchBrgy && matchDate) filtered.push(l);
+      }
+      curPage = 1; renderData(filtered);
+    }
+
+    async function renderData(data) {
+      const paged = paginateTable(data, curPage, PER);
+      const tbody = document.getElementById('logs-tbody');
+      tbody.innerHTML = !paged.items.length
+        ? '<tr><td colspan="9" class="table-empty"><i class="bi bi-shield-check"></i>No log entries found</td></tr>'
+        : (await Promise.all(paged.items.map(async (l, i) => {
+          const logUser = await DB.find('users', { id: l.userId });
+          const brgy = logUser?.barangayId ? await DB.getBarangay(logUser.barangayId) : null;
+          const badgeCls = ACTION_COLORS[l.action] || 'badge-secondary';
+          return `<tr>
+        <td style="color:#94a3b8;font-size:.78rem;">${(curPage - 1) * PER + i + 1}</td>
+        <td style="font-weight:600;">${logUser?.fullName || 'System'}</td>
+        <td><span class="badge badge-secondary" style="font-size:.7rem;">${logUser ? DB.getRoleLabel(logUser.roleId) : '—'}</span></td>
+        <td>${brgy?.name || '—'}</td>
+        <td><span class="badge ${badgeCls}" style="font-size:.7rem;">${l.action}</span></td>
+        <td style="font-size:.82rem;">${l.description}</td>
+        <td><span class="badge badge-info" style="font-size:.7rem;">${l.module}</span></td>
+        <td style="font-size:.78rem;color:#64748b;">${l.ipAddress || '—'}</td>
+        <td style="font-size:.78rem;white-space:nowrap;">${formatDateTime(l.createdAt)}</td>
+      </tr>`;
+        }))).join('');
+
+      document.getElementById('log-info').textContent = `${Math.min((curPage - 1) * PER + 1, data.length)}–${Math.min(curPage * PER, data.length)} of ${data.length} entries`;
+      const btns = document.getElementById('log-btns'); btns.innerHTML = '';
+      for (let i = 1; i <= paged.pages; i++) {
+        const b = document.createElement('button'); b.textContent = i;
+        b.className = 'btn btn-xs ' + (i === curPage ? 'btn-primary' : 'btn-light');
+        b.onclick = () => { curPage = i; renderData(data); }; btns.appendChild(b);
+      }
+    }
+
+    async function exportLogs() {
+      exportCSV(await Promise.all(allLogs.map(async l => {
+        const u = await DB.find('users', { id: l.userId });
+        return { User: u?.fullName || 'System', Action: l.action, Description: l.description, Module: l.module, Timestamp: l.createdAt };
+      })), 'BFMSS_Audit_Logs');
+    }
+    function toggleTimelineView() {
+      const tl = document.getElementById('timeline-container');
+      const tv = document.getElementById('table-view');
+      const btn = document.getElementById('timeline-view-btn');
+      const isTimeline = tl.style.display !== 'none';
+      tl.style.display = isTimeline ? 'none' : 'block';
+      tv.style.display = isTimeline ? 'block' : 'none';
+      btn.innerHTML = isTimeline
+        ? '<i class="bi bi-clock-history"></i> Timeline View'
+        : '<i class="bi bi-table"></i> Table View';
+      if (!isTimeline) renderAuditTimeline('timeline-container', 100);
+    }
+  </script>
+</body>
+
+</html>

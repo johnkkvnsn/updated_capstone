@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="main-content">
+    <header class="topbar" id="topbar"></header>
+    <main class="page-body">
+
+      <div class="page-header">
+        <div class="page-header-info"><h2>Admin Dashboard</h2><p>System overview and user management controls.</p></div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" onclick="window.location.href='users.html'"><i class="bi bi-person-plus"></i> Manage Users</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:14px;">
+          <div class="stat-icon navy"><i class="bi bi-people-fill"></i></div>
+          <div><div class="stat-label">Total Users</div><div class="stat-value" id="s-users">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:14px;">
+          <div class="stat-icon green"><i class="bi bi-person-check-fill"></i></div>
+          <div><div class="stat-label">Active Users</div><div class="stat-value" id="s-active">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:14px;">
+          <div class="stat-icon red"><i class="bi bi-person-x-fill"></i></div>
+          <div><div class="stat-label">Inactive Users</div><div class="stat-value" id="s-inactive">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:14px;">
+          <div class="stat-icon amber"><i class="bi bi-exclamation-triangle"></i></div>
+          <div><div class="stat-label">Failed Logins</div><div class="stat-value" id="s-failed">0</div></div>
+        </div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+        <div class="card"><div class="card-header"><div class="card-title">Users by Role</div></div>
+          <div class="card-body"><canvas id="roleChart" height="200"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Recent Activity</div></div>
+          <div class="card-body" id="activity-feed" style="font-size:.82rem;"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="bi bi-people" style="color:#1a3a6b;margin-right:6px;"></i>Recent User Accounts</div>
+          <a href="users.html" class="btn btn-sm btn-outline">Manage All</a></div>
+        <div class="table-wrapper">
+          <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Barangay</th><th>Last Login</th><th>Status</th></tr></thead>
+          <tbody id="users-tbody"></tbody></table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../../assets/js/db.js"></script>
+<script src="../../assets/js/utils.js"></script>
+<script src="../../assets/js/sidebar.js"></script><script src="../../assets/js/chatbot.js"></script><script src="../../assets/js/enhancements.js"></script>
+<script>
+const user = requireAuth(['admin']);
+(async () => {
+if (user) {
+  await renderSidebar('dashboard');
+  await renderTopbar('Admin Dashboard', 'System management and oversight');
+  const users = await DB.get('users');
+  const active = users.filter(u => u.status === 'active');
+  const failed = (await DB.filter('audit_logs', { action: 'LOGIN_FAILED' })).length;
+  document.getElementById('s-users').textContent = users.length;
+  document.getElementById('s-active').textContent = active.length;
+  document.getElementById('s-inactive').textContent = users.filter(u => u.status !== 'active').length;
+  document.getElementById('s-failed').textContent = failed;
+
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = (await Promise.all(users.slice(-8).reverse().map(async u => {
+    const brgy = u.barangayId ? await DB.getBarangay(u.barangayId) : null;
+    return `<tr><td style="font-weight:600;">${u.fullName}</td><td>${u.email}</td><td><span class="badge badge-primary">${DB.getRoleLabel(u.roleId)}</span></td>
+    <td>${brgy?.name||'—'}</td><td>${formatDateShort(u.lastLogin)||'Never'}</td><td>${statusBadge(u.status)}</td></tr>`;
+  }))).join('');
+
+  const roleCount = {};
+  users.forEach(u => { roleCount[DB.getRoleLabel(u.roleId)] = (roleCount[DB.getRoleLabel(u.roleId)]||0)+1; });
+  new Chart(document.getElementById('roleChart'), {
+    type: 'doughnut',
+    data: { labels: Object.keys(roleCount), datasets: [{ data: Object.values(roleCount), backgroundColor: ['#1a3a6b','#16a34a','#0284c7','#f59e0b'], borderWidth: 0 }] },
+    options: { responsive: true, plugins: { legend: { position: 'right' } }, cutout: '60%' }
+  });
+
+  const logs = (await DB.get('audit_logs')).slice(-6).reverse();
+  document.getElementById('activity-feed').innerHTML = (await Promise.all(logs.map(async l => {
+    const lu = await DB.find('users', { id: l.userId });
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:.5rem 0;border-bottom:1px solid #f1f5f9;">
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a3a6b;margin-top:5px;flex-shrink:0;"></div>
+      <div><div style="font-weight:600;">${lu?.fullName||'System'}</div>
+      <div style="color:#64748b;">${l.description}</div>
+      <div style="font-size:.72rem;color:#94a3b8;">${formatDateTime(l.createdAt)}</div></div>
+    </div>`;
+  }))).join('');
+}
+})();
+</script>
+</body>
+</html>

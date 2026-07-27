@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approve/Reject Reports — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="main-content">
+    <header class="topbar" id="topbar"></header>
+    <main class="page-body">
+
+      <div class="page-header">
+        <div class="page-header-info"><h2>Approve / Reject Reports</h2><p>Review all submitted financial reports from Barangay Treasurers.</p></div>
+        <div class="page-header-actions">
+          <button class="btn btn-light btn-sm" onclick="exportReportsCSV()"><i class="bi bi-download"></i> Export</button>
+        </div>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.25rem;">
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
+          <div class="stat-icon navy"><i class="bi bi-files"></i></div>
+          <div><div class="stat-label">Total Reports</div><div class="stat-value" id="s-total" style="font-size:1.2rem;">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
+          <div class="stat-icon amber"><i class="bi bi-hourglass"></i></div>
+          <div><div class="stat-label">Pending</div><div class="stat-value" id="s-pending" style="font-size:1.2rem;">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
+          <div class="stat-icon green"><i class="bi bi-check2-circle"></i></div>
+          <div><div class="stat-label">Approved</div><div class="stat-value" id="s-approved" style="font-size:1.2rem;">0</div></div>
+        </div></div>
+        <div class="card stat-card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
+          <div class="stat-icon red"><i class="bi bi-x-circle"></i></div>
+          <div><div class="stat-label">Rejected</div><div class="stat-value" id="s-rejected" style="font-size:1.2rem;">0</div></div>
+        </div></div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar-search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control" id="search-reports" placeholder="Search reports..." oninput="filterReports()">
+          </div>
+          <select class="filter-select" id="filter-status" onchange="filterReports()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select class="filter-select" id="filter-type" onchange="filterReports()">
+            <option value="">All Types</option>
+            <option value="income_expense">Income & Expense</option>
+            <option value="budget_proposal">Budget Proposal</option>
+            <option value="disbursement_voucher">Disbursement Voucher</option>
+            <option value="liquidation_report">Liquidation Report</option>
+            <option value="financial_statement">Financial Statement</option>
+          </select>
+          <select class="filter-select" id="filter-brgy" onchange="filterReports()">
+            <option value="">All Barangays</option>
+          </select>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Report Title</th><th>Treasurer</th><th>Barangay</th><th>Type</th><th>Period</th><th>Submitted</th><th>Status</th><th>Remarks</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="reports-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="pagination-info" style="font-size:.82rem;color:#64748b;"></span>
+          <div id="pagination-btns" style="display:flex;gap:.35rem;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- View Report Modal -->
+<div class="modal-overlay" id="view-report-modal">
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="view-title">Report Details</span>
+      <button class="modal-close" onclick="hideModal('view-report-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="view-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-light" onclick="hideModal('view-report-modal')">Close</button>
+      <button class="btn btn-secondary" id="view-approve-btn"><i class="bi bi-check"></i> Approve</button>
+      <button class="btn btn-danger" id="view-reject-btn"><i class="bi bi-x"></i> Reject</button>
+      <button class="btn btn-outline" id="view-download-btn"><i class="bi bi-download"></i> Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/db.js"></script>
+<script src="../../assets/js/utils.js"></script>
+<script src="../../assets/js/sidebar.js"></script><script src="../../assets/js/chatbot.js"></script><script src="../../assets/js/enhancements.js"></script>
+<script src="../../assets/js/reports.js"></script>
+<script>
+const user = requireAuth(['super_admin']);
+let allReports = []; let curPage = 1; const PER = 10;
+const RTYPE = { income_expense:'Income & Expense', budget_proposal:'Budget Proposal', disbursement_voucher:'Disbursement Voucher', liquidation_report:'Liquidation Report', financial_statement:'Financial Statement', purchase_request:'Purchase Request' };
+
+(async () => {
+if (user) {
+  await renderSidebar('approvals');
+  await renderTopbar('Approve / Reject Reports', 'Review submitted financial reports from all barangays');
+
+  // Populate barangay filter
+  const brgyFilter = document.getElementById('filter-brgy');
+  (await DB.get('barangays')).forEach(b => {
+    const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; brgyFilter.appendChild(o);
+  });
+
+  load();
+}
+})();
+
+async function load() {
+  allReports = await DB.get('reports');
+  const s = status => allReports.filter(r => r.status === status).length;
+  document.getElementById('s-total').textContent = allReports.length;
+  document.getElementById('s-pending').textContent = s('pending');
+  document.getElementById('s-approved').textContent = s('approved');
+  document.getElementById('s-rejected').textContent = s('rejected');
+  renderData(allReports);
+}
+
+function filterReports() {
+  const q = document.getElementById('search-reports').value.toLowerCase();
+  const st = document.getElementById('filter-status').value;
+  const tp = document.getElementById('filter-type').value;
+  const br = document.getElementById('filter-brgy').value;
+  const filtered = allReports.filter(r =>
+    (!q || r.title.toLowerCase().includes(q)) &&
+    (!st || r.status === st) && (!tp || r.type === tp) &&
+    (!br || r.barangayId === parseInt(br))
+  );
+  curPage = 1; renderData(filtered);
+}
+
+async function renderData(data) {
+  const paged = paginateTable(data, curPage, PER);
+  const tbody = document.getElementById('reports-tbody');
+
+  if (!paged.items.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="table-empty"><i class="bi bi-files"></i>No reports found</td></tr>';
+  } else {
+    tbody.innerHTML = (await Promise.all(paged.items.map(async r => {
+      const treasurer = await DB.find('users', { id: r.submittedBy });
+      const brgy = await DB.getBarangay(r.barangayId);
+      return `<tr>
+        <td style="font-weight:600;max-width:180px;">${r.title}</td>
+        <td>${treasurer?.fullName || '—'}</td>
+        <td>${brgy?.name || '—'}</td>
+        <td><span class="badge badge-primary">${RTYPE[r.type]||r.type}</span></td>
+        <td>${r.period}</td>
+        <td>${formatDateShort(r.submittedAt)}</td>
+        <td>${statusBadge(r.status)}</td>
+        <td style="font-size:.78rem;color:#64748b;max-width:120px;">${r.notes||'—'}</td>
+        <td>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;">
+            <button class="btn btn-xs btn-outline" onclick="viewReport(${r.id})"><i class="bi bi-eye"></i></button>
+            ${r.status==='pending' ? `
+              <button class="btn btn-xs btn-secondary" onclick="approveReport(${r.id})"><i class="bi bi-check"></i></button>
+              <button class="btn btn-xs btn-danger" onclick="rejectReport(${r.id})"><i class="bi bi-x"></i></button>` : ''}
+            <button class="btn btn-xs btn-light" onclick="downloadPDF(${r.id})" title="Download PDF"><i class="bi bi-download"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }))).join('');
+  }
+
+  document.getElementById('pagination-info').textContent = `${Math.min((curPage-1)*PER+1,data.length)}–${Math.min(curPage*PER,data.length)} of ${data.length}`;
+  const btns = document.getElementById('pagination-btns'); btns.innerHTML = '';
+  for (let i = 1; i <= paged.pages; i++) {
+    const b = document.createElement('button'); b.textContent = i;
+    b.className = 'btn btn-xs ' + (i===curPage?'btn-primary':'btn-light');
+    b.onclick = () => { curPage = i; renderData(data); }; btns.appendChild(b);
+  }
+}
+
+async function viewReport(id) {
+  const r = await DB.find('reports', { id: id });
+  if (!r) return;
+  const treasurer = await DB.find('users', { id: r.submittedBy });
+  const brgy = await DB.getBarangay(r.barangayId);
+
+  document.getElementById('view-title').textContent = r.title;
+  document.getElementById('view-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Report Type</div><div style="font-weight:600;">${RTYPE[r.type]||r.type}</div></div>
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Period</div><div style="font-weight:600;">${r.period}</div></div>
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Submitted By</div><div style="font-weight:600;">${treasurer?.fullName||'—'}</div></div>
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Barangay</div><div style="font-weight:600;">${brgy?.name||'—'}</div></div>
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Submitted On</div><div style="font-weight:600;">${formatDateTime(r.submittedAt)}</div></div>
+      <div><div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Status</div><div>${statusBadge(r.status)}</div></div>
+    </div>
+    ${r.notes ? `<div class="alert alert-info"><strong>Remarks:</strong> ${r.notes}</div>` : ''}
+    <div style="background:#f8fafc;border-radius:8px;padding:1rem;">
+      <div style="font-weight:700;margin-bottom:.5rem;">Financial Summary — Barangay ${brgy?.name||''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;font-size:.875rem;">
+        <div style="text-align:center;padding:.75rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+          <div style="font-size:.75rem;color:#64748b;">Total Income</div>
+          <div style="font-weight:700;color:#16a34a;font-size:1rem;">${formatCurrency(await DB.getTotalIncome(r.barangayId))}</div>
+        </div>
+        <div style="text-align:center;padding:.75rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+          <div style="font-size:.75rem;color:#64748b;">Total Expenses</div>
+          <div style="font-weight:700;color:#dc2626;font-size:1rem;">${formatCurrency(await DB.getTotalExpenses(r.barangayId))}</div>
+        </div>
+        <div style="text-align:center;padding:.75rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+          <div style="font-size:.75rem;color:#64748b;">Net Balance</div>
+          <div style="font-weight:700;color:#1a3a6b;font-size:1rem;">${formatCurrency(await DB.getNetBalance(r.barangayId))}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const aBtn = document.getElementById('view-approve-btn');
+  const rBtn = document.getElementById('view-reject-btn');
+  aBtn.style.display = r.status === 'pending' ? 'flex' : 'none';
+  rBtn.style.display = r.status === 'pending' ? 'flex' : 'none';
+  aBtn.onclick = () => { hideModal('view-report-modal'); approveReport(id); };
+  rBtn.onclick = () => { hideModal('view-report-modal'); rejectReport(id); };
+  document.getElementById('view-download-btn').onclick = () => downloadPDF(id);
+  showModal('view-report-modal');
+}
+
+async function approveReport(id) {
+  if (!confirm('Approve this report? The submitter will be notified.')) return;
+  const r = await DB.find('reports', { id: id });
+  if (!r) return;
+  const brgy = await DB.getBarangay(r.barangayId);
+  await DB.update('reports', id, {
+    status: 'approved',
+    approvedBy: user.id,
+    approvedAt: nowISO(),
+    notes: `Approved by ${user.fullName} on ${new Date().toLocaleDateString('en-PH')}.`,
+  });
+  // Notify the submitter (Treasurer or SK Treasurer)
+  DB.notify(
+    r.submittedBy,
+    '✅ Report Approved!',
+    `Your "${r.title}" has been approved by the Super Admin. You may now download the final copy.`,
+    'success'
+  );
+  await DB.log(user.id, 'APPROVE_REPORT', `Approved "${r.title}" from Barangay ${brgy?.name || ''}`, 'Reports');
+  showToast('Report approved! The treasurer has been notified.', 'success');
+  load();
+}
+
+async function rejectReport(id) {
+  const reason = prompt('Enter rejection reason (this will be sent to the treasurer):');
+  if (!reason || !reason.trim()) return;
+  const r = await DB.find('reports', { id: id });
+  if (!r) return;
+  const brgy = await DB.getBarangay(r.barangayId);
+  await DB.update('reports', id, {
+    status: 'rejected',
+    approvedBy: user.id,
+    approvedAt: nowISO(),
+    notes: reason.trim(),
+  });
+  // Notify the submitter with the reason
+  DB.notify(
+    r.submittedBy,
+    '❌ Report Requires Revision',
+    `Your "${r.title}" was returned for revision. Super Admin notes: "${reason.trim()}" — Please correct and re-submit.`,
+    'warning'
+  );
+  await DB.log(user.id, 'REJECT_REPORT', `Rejected "${r.title}" from Barangay ${brgy?.name || ''} — Reason: ${reason}`, 'Reports');
+  showToast('Report returned for revision. The treasurer has been notified.', 'warning');
+  load();
+}
+
+async function downloadPDF(id) {
+  const r = await DB.find('reports', { id: id });
+  if (!r) return;
+  if (r.file_path) {
+    window.open(r.file_path, '_blank');
+  } else {
+    downloadReport(r.type, r.data || {}, r.barangayId, r.module === 'sk' ? 'sk' : 'treasurer');
+  }
+}
+
+async function exportReportsCSV() {
+  exportCSV(await Promise.all(allReports.map(async r => {
+    const t = await DB.find('users', { id: r.submittedBy });
+    const b = await DB.getBarangay(r.barangayId);
+    return { Title: r.title, Type: RTYPE[r.type]||r.type, Barangay: b?.name, Treasurer: t?.fullName, Period: r.period, Submitted: r.submittedAt, Status: r.status };
+  })), 'BFMSS_Reports');
+}
+</script>
+</body>
+</html>

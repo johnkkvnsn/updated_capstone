@@ -1,0 +1,264 @@
+/* ==========================================================
+   1. CSS Reset & Typography
+   ========================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.tracking-wide {
+    letter-spacing: 0.05em;
+}
+
+/* ==========================================================
+   2. Color Settings (Variables)
+   ========================================================== */
+:root {
+    --bg-main: #ffffff;
+    --bg-secondary: #f4f7f9;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --card-bg: #ffffff;
+
+    --input-bg: #f9fafb;
+    --input-border: #d1d5db;
+
+    --primary-color: #2563eb;
+    --accent-color: #3b82f6;
+}
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+    --bg-main: #111827;
+    --bg-secondary: #1f2937;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --card-bg: #1f2937;
+
+    --input-bg: #374151;
+    --input-border: #4b5563;
+
+    --primary-color: #60a5fa;
+    --accent-color: #3b82f6;
+}
+
+/* ==========================================================
+   3. Base Rules
+   ========================================================== */
+body,
+.dashboard-body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    overflow-x: hidden;
+}
+
+.text-dark {
+    color: var(--text-main) !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+/* ==========================================================
+   4. Dashboard Layout & Sidebar
+   ========================================================== */
+.h-100vh {
+    height: 100vh;
+}
+
+.bg-secondary-custom {
+    background-color: var(--bg-secondary);
+}
+
+.wrapper {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Glassmorphism Topbar */
+.top-navbar {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .top-navbar {
+    background-color: rgba(31, 41, 55, 0.8) !important;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    width: 280px;
+    height: 100vh;
+    transition: all 0.3s ease;
+    z-index: 1040;
+    background-color: var(--card-bg) !important;
+}
+
+.sidebar-link {
+    padding: 12px 16px;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.sidebar-link:hover {
+    background-color: var(--bg-secondary);
+    color: var(--primary-color) !important;
+}
+
+.sidebar-link.active {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color) !important;
+    font-weight: 600;
+}
+
+/* Dropdown Menu styling */
+.dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--input-border);
+}
+
+.dropdown-item {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--bg-secondary);
+    color: var(--primary-color);
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* ==========================================================
+   5. Dashboard Summary Cards
+   ========================================================== */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--input-border);
+}
+
+.stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Small Colored Icon Boxes */
+.icon-box {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+}
+
+/* Pastel/Light Backgrounds for Icons & Badges */
+.bg-primary-light {
+    background-color: rgba(37, 99, 235, 0.15) !important;
+}
+
+.bg-warning-light {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+.bg-info-light {
+    background-color: rgba(6, 182, 212, 0.15) !important;
+}
+
+.bg-secondary-light {
+    background-color: rgba(107, 114, 128, 0.15) !important;
+}
+
+.bg-success-light {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.bg-danger-light {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Responsive Sidebar Toggle */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -280px;
+    }
+
+    .sidebar.show {
+        left: 0;
+        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* ==========================================================
+   6. Modal Styling
+   ========================================================== */
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+}
+
+.btn-light {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--input-border);
+    color: var(--text-main);
+}
+
+.btn-light:hover {
+    background-color: var(--input-border);
+}
+
+/* ==========================================================
+   7. Tailwind Style Pop-up Notices
+   ========================================================== */
+.toast-container {
+    z-index: 1060;
+}
+
+.tw-toast {
+    border-left: 5px solid transparent !important;
+    border-radius: 8px !important;
+    background-color: var(--card-bg);
+}
+
+.toast-success {
+    border-left-color: #10b981 !important;
+}
+
+.toast-success i {
+    color: #10b981;
+}
+
+.toast-error {
+    border-left-color: #ef4444 !important;
+}
+
+.toast-error i {
+    color: #ef4444;
+}
+
+.toast-warning {
+    border-left-color: #f59e0b !important;
+}
+
+.toast-warning i {
+    color: #f59e0b;
+}

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consolidated Reports — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>Consolidated Barangay Reports</h2>
+            <p>Generate municipality-wide financial consolidation reports across all barangays.</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-sm btn-outline" onclick="checkAndNotifyAllFrequencies()">
+              <i class="bi bi-bell"></i> Notify Late Barangays
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Deadline Status Banner -->
+        <div class="card" id="deadline-banner" style="margin-bottom:1rem;"></div>
+
+        <!-- Deadline Management Panel (Super Admin) -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header">
+            <div class="card-title"><i class="bi bi-calendar-check" style="color:#1a3a6b;margin-right:6px;"></i>Set
+              Report Submission Deadlines</div>
+            <div class="card-subtitle" style="font-size:.8rem;color:#6b7280;">Choose the exact date each barangay
+              must submit their report by. Leave on "Default" to use the automatic schedule.</div>
+          </div>
+          <div class="card-body" id="deadline-editor"></div>
+        </div>
+
+        <!-- Barangay Breakdown Table -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header">
+            <div class="card-title"><i class="bi bi-houses" style="color:#1a3a6b;margin-right:6px;"></i>Barangay
+              Financial Summary</div>
+            <div class="card-subtitle" id="brgy-table-subtitle" style="font-size:.8rem;color:#6b7280;"></div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Barangay</th>
+                  <th>Municipality</th>
+                  <th>Total Income</th>
+                  <th>Total Expenses</th>
+                  <th>Net Balance</th>
+                  <th>Reports Submitted</th>
+                  <th>Approved</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="brgy-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Municipality Chart -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Municipal Income by Barangay</div>
+            </div>
+            <div class="card-body"><canvas id="muniIncomeChart" height="220"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Municipal Expenses by Barangay</div>
+            </div>
+            <div class="card-body"><canvas id="muniExpChart" height="220"></canvas></div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script src="../../assets/js/reports.js"></script>
+  <script>
+    const user = requireAuth(['super_admin']);
+
+    (async () => {
+    if (user) {
+      await renderSidebar('consolidate');
+      await renderTopbar('Consolidated Reports', 'Municipality-wide financial reporting');
+
+      const barangays = await DB.get('barangays');
+      const reports = await DB.get('reports');
+
+      // ============================================================
+      // REAL-TIME DEADLINE CONFIGURATION
+      // graceDays = how many days after the period ends a barangay
+      // still has to submit before being marked "late".
+      // Adjust to match your municipality's official COA/DBM cutoff.
+      // ============================================================
+      const REPORT_DEADLINES = {
+        monthly: { graceDays: 10 },
+        quarterly: { graceDays: 30 },
+        yearly: { graceDays: 45 }
+      };
+
+      // Returns the {start, end} of the *most recently completed* period
+      // for a given frequency, based on the real current date.
+      function getPeriodBounds(frequency, refDate = new Date()) {
+        const y = refDate.getFullYear();
+        const m = refDate.getMonth();
+
+        if (frequency === 'monthly') {
+          const start = new Date(y, m - 1, 1);
+          const end = new Date(y, m, 0); // last day of previous month
+          return { start, end };
+        }
+        if (frequency === 'quarterly') {
+          const currentQ = Math.floor(m / 3);
+          const prevQStartMonth = (currentQ - 1) * 3;
+          const start = new Date(y, prevQStartMonth, 1);
+          const end = new Date(y, prevQStartMonth + 3, 0);
+          return { start, end };
+        }
+        // yearly — previous calendar year
+        return { start: new Date(y - 1, 0, 1), end: new Date(y - 1, 11, 31) };
+      }
+
+      // ============================================================
+      // EDITABLE DEADLINE OVERRIDES (calendar picker)
+      // An admin can manually set/override the deadline date for the
+      // CURRENT period of each frequency (monthly/quarterly/yearly).
+      // Overrides are keyed to the specific period they apply to, so
+      // once that period rolls over, the system automatically falls
+      // back to the default graceDays calculation for the new period
+      // — old overrides never leak into a future period.
+      //
+      // Persisted via DB.setSetting / DB.getSetting if your db.js
+      // exposes a generic settings store; otherwise falls back to
+      // localStorage so this works out of the box.
+      // ============================================================
+      const DEADLINE_OVERRIDE_KEY = 'bfmss_deadline_overrides';
+
+      function pad2(n) { return String(n).padStart(2, '0'); }
+
+      // Unique key identifying the period an override belongs to,
+      // e.g. "monthly_2026-06", "quarterly_2026-Q2", "yearly_2025".
+      function getPeriodKey(frequency, refDate = new Date()) {
+        const { end } = getPeriodBounds(frequency, refDate);
+        if (frequency === 'monthly') return `monthly_${end.getFullYear()}-${pad2(end.getMonth() + 1)}`;
+        if (frequency === 'quarterly') return `quarterly_${end.getFullYear()}-Q${Math.floor(end.getMonth() / 3) + 1}`;
+        return `yearly_${end.getFullYear()}`;
+      }
+
+      function readOverrideStore() {
+        try {
+          if (typeof DB !== 'undefined' && typeof DB.getSetting === 'function') {
+            return DB.getSetting(DEADLINE_OVERRIDE_KEY) || {};
+          }
+          return JSON.parse(localStorage.getItem(DEADLINE_OVERRIDE_KEY) || '{}');
+        } catch { return {}; }
+      }
+
+      function writeOverrideStore(store) {
+        if (typeof DB !== 'undefined' && typeof DB.setSetting === 'function') {
+          DB.setSetting(DEADLINE_OVERRIDE_KEY, store);
+        } else {
+          localStorage.setItem(DEADLINE_OVERRIDE_KEY, JSON.stringify(store));
+        }
+      }
+
+      // Manually set a deadline date for the CURRENT period of a frequency.
+      window.setDeadlineOverride = async function (frequency, isoDateStr) {
+        if (!isoDateStr) return;
+        const store = readOverrideStore();
+        const key = getPeriodKey(frequency);
+        store[key] = isoDateStr; // 'YYYY-MM-DD'
+        writeOverrideStore(store);
+        await DB.log(user.id, 'SET_REPORT_DEADLINE', `Set ${frequency} deadline for ${key} to ${isoDateStr}`, 'Reports');
+        renderDeadlineBanner();
+        renderDeadlineEditor();
+        renderBarangayTable();
+        if (typeof showToast === 'function') showToast('Deadline updated.', 'success');
+      };
+
+      // Clear a manual override so the frequency falls back to the
+      // automatic graceDays-based calculation.
+      window.resetDeadlineOverride = async function (frequency) {
+        const store = readOverrideStore();
+        const key = getPeriodKey(frequency);
+        delete store[key];
+        writeOverrideStore(store);
+        await DB.log(user.id, 'RESET_REPORT_DEADLINE', `Reset ${frequency} deadline for ${key} to default`, 'Reports');
+        renderDeadlineBanner();
+        renderDeadlineEditor();
+        renderBarangayTable();
+        if (typeof showToast === 'function') showToast('Deadline reset to default.', 'info');
+      };
+
+      function getDeadline(frequency, refDate = new Date()) {
+        const store = readOverrideStore();
+        const key = getPeriodKey(frequency, refDate);
+        if (store[key]) {
+          // Manual override in effect for this period — treat the whole
+          // day as the deadline (end of day) so "due on" reads naturally.
+          const d = new Date(store[key] + 'T23:59:59');
+          if (!isNaN(d.getTime())) return d;
+        }
+        const { end } = getPeriodBounds(frequency, refDate);
+        const deadline = new Date(end);
+        deadline.setDate(deadline.getDate() + REPORT_DEADLINES[frequency].graceDays);
+        return deadline;
+      }
+
+      function hasDeadlineOverride(frequency, refDate = new Date()) {
+        const store = readOverrideStore();
+        return !!store[getPeriodKey(frequency, refDate)];
+      }
+
+      function daysBetween(a, b) {
+        return Math.ceil((a - b) / (1000 * 60 * 60 * 24));
+      }
+
+      // A barangay is "late" only once the real-time clock has passed
+      // the computed deadline AND no matching report was submitted
+      // for that period.
+      function isBarangayLate(barangayId, frequency = 'monthly') {
+        const { start, end } = getPeriodBounds(frequency);
+        const deadline = getDeadline(frequency);
+        const now = new Date();
+        if (now < deadline) return false; // still inside grace period
+
+        const submitted = reports.some(r =>
+          r.barangayId === barangayId &&
+          r.frequency === frequency &&
+          new Date(r.periodEnd) >= start &&
+          new Date(r.periodEnd) <= end &&
+          r.status !== 'pending'
+        );
+        return !submitted;
+      }
+
+      // ---- barangay table, with real-time lateness check ----
+      async function renderBarangayTable() {
+        const tbody = document.getElementById('brgy-table');
+        let lateCount = 0;
+
+        tbody.innerHTML = (await Promise.all(barangays.map(async b => {
+          const income = await DB.getTotalIncome(b.id);
+          const expenses = await DB.getTotalExpenses(b.id);
+          const balance = income - expenses;
+          const submitted = reports.filter(r => r.barangayId === b.id).length;
+          const approved = reports.filter(r => r.barangayId === b.id && r.status === 'approved').length;
+          const late = isBarangayLate(b.id, 'monthly');
+          if (late) lateCount++;
+
+          let statusBadge;
+          if (late) statusBadge = '<span class="badge badge-danger">Late</span>';
+          else if (reports.some(r => r.barangayId === b.id && r.status === 'pending')) statusBadge = '<span class="badge badge-warning">Has Pending</span>';
+          else statusBadge = '<span class="badge badge-success">Up to Date</span>';
+
+          return `<tr>
+        <td style="font-weight:700;">${b.name}</td>
+        <td>${b.municipality}</td>
+        <td style="font-weight:600;color:#16a34a;">${formatCurrency(income)}</td>
+        <td style="font-weight:600;color:#dc2626;">${formatCurrency(expenses)}</td>
+        <td style="font-weight:700;color:${balance >= 0 ? '#1a3a6b' : '#dc2626'};">${formatCurrency(balance)}</td>
+        <td style="text-align:center;">${submitted}</td>
+        <td style="text-align:center;">${approved}</td>
+        <td>${statusBadge}</td>
+      </tr>`;
+        }))).join('');
+
+        document.getElementById('brgy-table-subtitle').textContent =
+          lateCount > 0 ? `${lateCount} barangay${lateCount === 1 ? '' : 's'} currently late on monthly reports` : 'All barangays up to date';
+      }
+
+      // Renders one read-only status cell for the live banner —
+      // just the date and days-left/overdue count, no controls.
+      function renderDeadlineStatusCell(frequency, label) {
+        const now = new Date();
+        const deadline = getDeadline(frequency);
+        const daysLeft = daysBetween(deadline, now);
+        const overridden = hasDeadlineOverride(frequency);
+        const color = daysLeft < 0 ? '#dc2626' : '#1a3a6b';
+
+        return `
+      <div style="min-width:200px;">
+        <div style="font-size:.75rem;color:#6b7280;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
+          ${label}
+          ${overridden ? '<span class="badge" style="background:#eef2ff;color:#4338ca;font-size:.65rem;">Manually set</span>' : ''}
+        </div>
+        <div style="font-weight:700;font-size:1.05rem;color:${color};">
+          ${deadline.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}
+          ${daysLeft >= 0 ? `(${daysLeft} day${daysLeft === 1 ? '' : 's'} left)` : `(${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? '' : 's'} overdue)`}
+        </div>
+      </div>`;
+      }
+
+      // ---- live status banner (read-only, refreshes automatically) ----
+      function renderDeadlineBanner() {
+        const now = new Date();
+        document.getElementById('deadline-banner').innerHTML = `
+      <div class="card-body" style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;">
+        ${renderDeadlineStatusCell('monthly', 'Monthly Report Deadline')}
+        ${renderDeadlineStatusCell('quarterly', 'Quarterly Report Deadline')}
+        ${renderDeadlineStatusCell('yearly', 'Yearly Report Deadline')}
+        <div style="margin-left:auto;font-size:.78rem;color:#9ca3af;white-space:nowrap;">
+          Live — as of ${now.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'medium' })}
+        </div>
+      </div>`;
+      }
+
+      // ---- deadline editor (always visible, clear card, no hidden
+      // toggles) — one row per frequency with a labeled date picker ----
+      const FREQUENCY_LABELS = { monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+
+      function renderDeadlineEditor() {
+        const rows = ['monthly', 'quarterly', 'yearly'].map(frequency => {
+          const deadline = getDeadline(frequency);
+          const overridden = hasDeadlineOverride(frequency);
+          const isoValue = deadline.toISOString().slice(0, 10);
+
+          return `
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="min-width:110px;font-weight:700;color:#1a3a6b;">${FREQUENCY_LABELS[frequency]}</div>
+          <label style="font-size:.78rem;color:#6b7280;">Deadline date:</label>
+          <input type="date" id="deadline-input-${frequency}" value="${isoValue}"
+            style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;">
+          <button type="button" class="btn btn-sm btn-primary" style="padding:4px 14px;"
+            onclick="setDeadlineOverride('${frequency}', document.getElementById('deadline-input-${frequency}').value)">
+            <i class="bi bi-check2"></i> Save
+          </button>
+          ${overridden
+              ? `<button type="button" class="btn btn-sm btn-outline" style="padding:4px 14px;" onclick="resetDeadlineOverride('${frequency}')">
+                   <i class="bi bi-arrow-counterclockwise"></i> Reset to Default
+                 </button>
+                 <span class="badge" style="background:#eef2ff;color:#4338ca;">Manually set for this period</span>`
+              : `<span style="font-size:.75rem;color:#9ca3af;">Currently using default schedule</span>`
+            }
+        </div>`;
+        }).join('');
+
+        document.getElementById('deadline-editor').innerHTML = rows;
+      }
+
+      // ============================================================
+      // LATE-BARANGAY NOTIFICATION (real-time, deduped per day)
+      // ============================================================
+      const NOTIFY_LOG_KEY = 'bfmss_late_notify_log';
+
+      function getNotifyLog() {
+        try { return JSON.parse(localStorage.getItem(NOTIFY_LOG_KEY) || '{}'); }
+        catch { return {}; }
+      }
+      function saveNotifyLog(log) {
+        localStorage.setItem(NOTIFY_LOG_KEY, JSON.stringify(log));
+      }
+
+      // Finds the real user account(s) responsible for a barangay's
+      // reports — its treasurer (roleId 3) and SK treasurer (roleId 4).
+      // Falls back to notifying all super admins if no treasurer
+      // account is linked to that barangay yet, so the alert never
+      // silently disappears.
+      async function getReportOwnersForBarangay(barangayId) {
+        const allUsers = await DB.get('users');
+        const owners = allUsers.filter(u =>
+          u.barangayId === barangayId && (u.roleId === 3 || u.roleId === 4) && u.status === 'active'
+        );
+        if (owners.length > 0) return owners;
+        // No treasurer linked to this barangay — alert super admins instead
+        // so the gap gets noticed and fixed (e.g. missing barangayId on a user).
+        return allUsers.filter(u => u.roleId === 1 && u.status === 'active');
+      }
+
+      window.checkAndNotifyLateBarangays = async function (frequency = 'monthly', silent = false) {
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const log = getNotifyLog();
+        let notifiedCount = 0;
+
+        for (const b of barangays) {
+          if (isBarangayLate(b.id, frequency)) {
+            const logKey = `${b.id}_${frequency}_${todayKey}`;
+            if (!log[logKey]) {
+              const owners = await getReportOwnersForBarangay(b.id);
+              owners.forEach(owner => {
+                DB.notify(
+                  owner.id,
+                  'Overdue Report',
+                  `${b.name}'s ${frequency} financial report is overdue as of ${new Date().toLocaleDateString('en-PH')}. Please submit as soon as possible.`,
+                  'warning'
+                );
+              });
+              log[logKey] = true;
+              notifiedCount++;
+            }
+          }
+        }
+
+        saveNotifyLog(log);
+        if (notifiedCount > 0) {
+          await DB.log(user.id, 'NOTIFY_LATE_BARANGAYS', `Sent ${notifiedCount} late-report notification(s) for ${frequency} reports`, 'Reports');
+        }
+
+        if (!silent) {
+          if (typeof showToast === 'function') {
+            showToast(notifiedCount > 0 ? `Notified ${notifiedCount} late barangay(s) (${frequency}).` : `No new late barangays to notify (${frequency}).`, 'info');
+          } else {
+            alert(notifiedCount > 0 ? `Notified ${notifiedCount} late barangay(s) (${frequency}).` : `No new late barangays to notify (${frequency}).`);
+          }
+        }
+        renderBarangayTable();
+        return notifiedCount;
+      };
+
+      // Runs the check across all three frequencies and shows a single
+      // combined toast — used by the manual "Notify Late Barangays" button.
+      window.checkAndNotifyAllFrequencies = async function () {
+        let total = 0;
+        for (const freq of ['monthly', 'quarterly', 'yearly']) {
+          total += await checkAndNotifyLateBarangays(freq, true);
+        }
+
+        if (typeof showToast === 'function') {
+          showToast(total > 0 ? `Notified ${total} barangay(s) across all report types.` : 'No new late barangays to notify.', total > 0 ? 'warning' : 'info');
+        } else {
+          alert(total > 0 ? `Notified ${total} barangay(s) across all report types.` : 'No new late barangays to notify.');
+        }
+        renderBarangayTable();
+      };
+
+      // ============================================================
+      // REAL-TIME AUTO-CHECK LOOP
+      // Runs an immediate silent check on load, then re-checks every
+      // few minutes while this page stays open — so a barangay that
+      // crosses its deadline WHILE someone is viewing the dashboard
+      // gets flagged and notified without needing a manual click or
+      // a full page reload. The per-day dedup inside
+      // checkAndNotifyLateBarangays still prevents duplicate alerts.
+      // ============================================================
+      const AUTO_CHECK_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
+
+      async function autoCheckAllFrequencies() {
+        for (const freq of ['monthly', 'quarterly', 'yearly']) {
+          await checkAndNotifyLateBarangays(freq, true);
+        }
+        renderDeadlineBanner();
+      }
+
+      autoCheckAllFrequencies(); // immediate check on load
+      setInterval(autoCheckAllFrequencies, AUTO_CHECK_INTERVAL_MS);
+
+      // Keep the "as of" clock and days-left counters ticking even if
+      // no barangay status changed, so the banner never looks stale.
+      setInterval(renderDeadlineBanner, 60 * 1000); // every 1 minute
+
+      renderDeadlineBanner();
+      renderDeadlineEditor();
+      renderBarangayTable();
+
+      // Charts
+      const incomeData = await Promise.all(barangays.map(async b => await DB.getTotalIncome(b.id)));
+      const expData = await Promise.all(barangays.map(async b => await DB.getTotalExpenses(b.id)));
+      const labels = barangays.map(b => b.name);
+      const colors = ['#1a3a6b', '#16a34a', '#0284c7', '#7c3aed', '#f59e0b'];
+
+      new Chart(document.getElementById('muniIncomeChart'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Income', data: incomeData, backgroundColor: colors, borderRadius: 6 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+      new Chart(document.getElementById('muniExpChart'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Expenses', data: expData, backgroundColor: colors.map(c => c + '99'), borderRadius: 6 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+    })();
+
+    async function generateConsolidated(type) {
+      const fd = {
+        period: '2026 (January - December)',
+        preparedBy: user.fullName,
+        certifiedBy: user.fullName,
+        approvedBy: 'Municipal Mayor',
+        notes: 'Consolidated municipal report'
+      };
+      downloadReport(type, fd, 1);
+      await DB.log(user.id, 'GENERATE_CONSOLIDATED', `Generated consolidated ${type} report`, 'Reports');
+    }
+    function previewConsolidated(type) { generateConsolidated(type); }
+  </script>
+</body>
+
+</html>

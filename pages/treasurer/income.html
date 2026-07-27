@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Record Income — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>Record Income</h2>
+            <p>Track and manage all income and revenue transactions for the current period.</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="showModal('add-income-modal')"><i class="bi bi-plus-lg"></i> New
+              Income Entry</button>
+          </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="stats-grid" style="grid-template-columns:1fr;margin-bottom:1.25rem;">
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+              <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
+              <div>
+                <div class="stat-label">Total Income</div>
+                <div class="stat-value" id="total-income-val" style="font-size:1.2rem;">₱ 0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-search">
+              <i class="bi bi-search"></i>
+              <input type="text" class="form-control" id="search-income" placeholder="Search income records..."
+                oninput="filterTable()">
+            </div>
+            <select class="filter-select" id="filter-category" onchange="filterTable()">
+              <option value="">All Categories</option>
+              <option value="IRA">IRA</option>
+              <option value="Local Revenue">Local Revenue</option>
+              <option value="Fees">Fees</option>
+              <option value="Grants">Grants</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+            <button class="btn btn-light btn-sm" onclick="exportIncomeCSV()"><i class="bi bi-download"></i> CSV</button>
+            <button class="btn btn-excel btn-sm" onclick="exportIncomeExcel(user.barangayId,'treasurer')"><i
+                class="bi bi-file-earmark-excel"></i> Excel</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table id="income-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Source</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Date Received</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="income-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card-footer" id="pagination-bar"
+            style="display:flex;align-items:center;justify-content:space-between;">
+            <span id="pagination-info" style="font-size:.82rem;color:#64748b;"></span>
+            <div id="pagination-btns" style="display:flex;gap:.35rem;"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add Income Modal -->
+  <div class="modal-overlay" id="add-income-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-plus-circle" style="margin-right:6px;"></i>Add Income Entry</span>
+        <button class="modal-close" onclick="hideModal('add-income-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Income Source <span style="color:#dc2626">*</span></label>
+          <input type="text" id="inc-source" class="form-control" placeholder="e.g. IRA, Business Permits...">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Category <span style="color:#dc2626">*</span></label>
+            <select id="inc-category" class="form-control">
+              <option value="">— Select —</option>
+              <option value="IRA">IRA (Internal Revenue Allotment)</option>
+              <option value="Local Revenue">Local Revenue</option>
+              <option value="Fees">Fees & Charges</option>
+              <option value="Grants">Grants & Aids</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount (₱) <span style="color:#dc2626">*</span></label>
+            <input type="number" id="inc-amount" class="form-control" placeholder="0.00" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Date Received <span style="color:#dc2626">*</span></label>
+          <input type="date" id="inc-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Description / Notes</label>
+          <textarea id="inc-desc" class="form-control" rows="2" placeholder="Optional additional details..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('add-income-modal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="saveIncome()"><i class="bi bi-check"></i> Save Income</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-income-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-pencil" style="margin-right:6px;"></i>Edit Income Entry</span>
+        <button class="modal-close" onclick="hideModal('edit-income-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-inc-id">
+        <div class="form-group"><label>Income Source</label><input type="text" id="edit-inc-source"
+            class="form-control"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Category</label>
+            <select id="edit-inc-category" class="form-control">
+              <option value="IRA">IRA</option>
+              <option value="Local Revenue">Local Revenue</option>
+              <option value="Fees">Fees & Charges</option>
+              <option value="Grants">Grants & Aids</option>
+              <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Amount (₱)</label><input type="number" id="edit-inc-amount"
+              class="form-control"></div>
+        </div>
+        <div class="form-group"><label>Date Received</label><input type="date" id="edit-inc-date" class="form-control">
+        </div>
+        <div class="form-group"><label>Description</label><textarea id="edit-inc-desc" class="form-control"
+            rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('edit-income-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="updateIncome()"><i class="bi bi-check"></i> Update</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['treasurer']);
+    let allIncome = [];
+    let curPage = 1;
+    const PER_PAGE = 10;
+
+    (async () => {
+    if (user) {
+      await renderSidebar('income');
+      await renderTopbar('Record Income', 'Manage income and revenue transactions');
+      document.getElementById('inc-date').value = today();
+      loadIncome();
+    }
+    })();
+
+    async function loadIncome() {
+      allIncome = await DB.filter('income', { barangayId: user.barangayId });
+      updateSummary();
+      renderTable();
+    }
+
+    function updateSummary() {
+      document.getElementById('total-income-val').textContent = formatCurrency(allIncome.reduce((s, i) => s + i.amount, 0));
+    }
+
+    function filterTable() {
+      const q = document.getElementById('search-income').value.toLowerCase();
+      const cat = document.getElementById('filter-category').value;
+      const filtered = allIncome.filter(i => {
+        const matchQ = !q || i.source.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q);
+        const matchCat = !cat || i.category === cat;
+        return matchQ && matchCat;
+      });
+      curPage = 1;
+      renderTableData(filtered);
+    }
+
+    function renderTable() {
+      renderTableData(allIncome);
+    }
+
+    function renderTableData(data) {
+      const paged = paginateTable(data, curPage, PER_PAGE);
+      const tbody = document.getElementById('income-tbody');
+
+      if (!paged.items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="table-empty"><i class="bi bi-inbox"></i>No income records found</td></tr>';
+      } else {
+        tbody.innerHTML = paged.items.map((item, idx) => `
+      <tr>
+        <td style="color:#94a3b8;font-size:.8rem;">${(curPage - 1) * PER_PAGE + idx + 1}</td>
+        <td style="font-weight:600;">${item.source}</td>
+        <td><span class="badge badge-primary">${item.category}</span></td>
+        <td style="font-weight:700;color:#16a34a;">${formatCurrency(item.amount)}</td>
+        <td>${formatDateShort(item.dateReceived)}</td>
+        <td style="color:#64748b;font-size:.82rem;">${item.description || '—'}</td>
+        <td>
+          <div style="display:flex;gap:4px;">
+            <button class="btn-icon btn-sm" onclick="editIncome(${item.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn-icon btn-sm" style="color:#dc2626;" onclick="deleteIncome(${item.id})" title="Delete"><i class="bi bi-trash"></i></button>
+          </div>
+        </td>
+      </tr>`).join('');
+      }
+
+      document.getElementById('pagination-info').textContent = `Showing ${Math.min((curPage - 1) * PER_PAGE + 1, data.length)}–${Math.min(curPage * PER_PAGE, data.length)} of ${data.length} records`;
+      const btns = document.getElementById('pagination-btns');
+      btns.innerHTML = '';
+      for (let i = 1; i <= paged.pages; i++) {
+        const b = document.createElement('button');
+        b.textContent = i; b.className = 'btn btn-xs ' + (i === curPage ? 'btn-primary' : 'btn-light');
+        b.onclick = () => { curPage = i; renderTableData(data); };
+        btns.appendChild(b);
+      }
+    }
+
+    async function saveIncome() {
+      const source = document.getElementById('inc-source').value.trim();
+      const category = document.getElementById('inc-category').value;
+      const amount = parseFloat(document.getElementById('inc-amount').value);
+      const date = document.getElementById('inc-date').value;
+      if (!Validator.validateForm({
+        'inc-source': ['required', ['minLength', 3]],
+        'inc-category': ['required'],
+        'inc-amount': ['required', 'minAmount', 'maxAmount'],
+        'inc-date': ['required'],
+      })) return;
+
+      const newInc = await DB.insert('income', {
+        barangayId: user.barangayId, source, category, amount,
+        dateReceived: date, description: document.getElementById('inc-desc').value.trim(),
+        status: 'approved', userId: user.id, createdAt: nowISO()
+      });
+      await DB.log(user.id, 'ADD_INCOME', `Added income: ${source} - ₱${amount}`, 'Income');
+      hideModal('add-income-modal');
+      document.getElementById('inc-source').value = '';
+      document.getElementById('inc-amount').value = '';
+      document.getElementById('inc-desc').value = '';
+      showToast('Income record added successfully!', 'success');
+      loadIncome();
+    }
+
+    async function editIncome(id) {
+      const item = await DB.find('income', { id: id });
+      if (!item) return;
+      document.getElementById('edit-inc-id').value = id;
+      document.getElementById('edit-inc-source').value = item.source;
+      document.getElementById('edit-inc-category').value = item.category;
+      document.getElementById('edit-inc-amount').value = item.amount;
+      document.getElementById('edit-inc-date').value = item.dateReceived;
+      document.getElementById('edit-inc-desc').value = item.description || '';
+      showModal('edit-income-modal');
+    }
+
+    async function updateIncome() {
+      const id = parseInt(document.getElementById('edit-inc-id').value);
+      await DB.update('income', id, {
+        source: document.getElementById('edit-inc-source').value.trim(),
+        category: document.getElementById('edit-inc-category').value,
+        amount: parseFloat(document.getElementById('edit-inc-amount').value),
+        dateReceived: document.getElementById('edit-inc-date').value,
+        description: document.getElementById('edit-inc-desc').value.trim(),
+      });
+      await DB.log(user.id, 'UPDATE_INCOME', `Updated income record #${id}`, 'Income');
+      hideModal('edit-income-modal');
+      showToast('Income record updated!', 'success');
+      loadIncome();
+    }
+
+    async function deleteIncome(id) {
+      confirmAction('Are you sure you want to delete this income record?', async () => {
+        await DB.delete('income', id);
+        await DB.log(user.id, 'DELETE_INCOME', `Deleted income record #${id}`, 'Income');
+        showToast('Income record deleted.', 'warning');
+        loadIncome();
+      });
+    }
+
+    function exportIncomeCSV() {
+      exportCSV(allIncome.map(i => ({ Source: i.source, Category: i.category, Amount: i.amount, Date: i.dateReceived, Description: i.description || '' })), 'BFMSS_Income');
+    }
+  </script>
+</body>
+
+</html>

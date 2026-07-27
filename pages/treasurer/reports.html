@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate Reports — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+  <style>
+    /* ── Archive by Period — professional tree styling ── */
+    .archive-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 1rem;
+      padding-bottom: .85rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .archive-toolbar-stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .archive-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .archive-stat .archive-stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a3a6b;
+      line-height: 1;
+    }
+
+    .archive-stat .archive-stat-label {
+      font-size: .7rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .archive-jump-bar {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: .65rem .75rem;
+    }
+
+    .archive-jump-bar label {
+      display: block;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 3px;
+      letter-spacing: .01em;
+    }
+
+    .archive-tree-pro {
+      font-family: inherit;
+    }
+
+    .archive-tree-pro .archive-node {
+      position: relative;
+    }
+
+    .archive-tree-pro .archive-node[data-level="year"] {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      margin-bottom: .6rem;
+      overflow: hidden;
+      transition: box-shadow .15s ease, border-color .15s ease;
+    }
+
+    .archive-tree-pro .archive-node[data-level="year"]:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 6px rgba(15, 23, 42, .06);
+    }
+
+    .archive-tree-pro .archive-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color .12s ease;
+    }
+
+    .archive-tree-pro .archive-header:hover {
+      background-color: #f1f5f9 !important;
+    }
+
+    .archive-tree-pro .archive-header-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .archive-tree-pro .archive-caret {
+      font-size: .65rem;
+      color: #94a3b8;
+      transition: transform .15s ease;
+      flex-shrink: 0;
+      width: 10px;
+    }
+
+    .archive-tree-pro .archive-level-icon {
+      flex-shrink: 0;
+      font-size: .85rem;
+      color: #1a3a6b;
+    }
+
+    .archive-tree-pro .archive-label {
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .archive-tree-pro .archive-sublabel {
+      font-size: .74rem;
+      color: #94a3b8;
+      font-weight: 400;
+      margin-left: 6px;
+    }
+
+    .archive-tree-pro .archive-children {
+      border-top: 1px solid #eef2f7;
+      position: relative;
+    }
+
+    .archive-tree-pro .archive-children::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #e2e8f0;
+    }
+
+    .archive-tree-pro .archive-report-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: .4rem .5rem .4rem 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .archive-tree-pro .archive-report-row:last-child {
+      border-bottom: none;
+    }
+
+    .archive-tree-pro .archive-report-row:hover {
+      background-color: #fafbfc;
+    }
+
+    .archive-tree-pro .archive-report-title {
+      font-size: .83rem;
+      color: #334155;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .archive-highlight {
+      animation: archiveGlow 1.6s ease;
+    }
+
+    @keyframes archiveGlow {
+      0% {
+        box-shadow: 0 0 0 3px rgba(26, 58, 107, .35);
+      }
+
+      100% {
+        box-shadow: none;
+      }
+    }
+
+    .archive-empty-pro {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: #94a3b8;
+    }
+
+    .archive-empty-pro i {
+      font-size: 1.8rem;
+      display: block;
+      margin-bottom: .5rem;
+      color: #cbd5e1;
+    }
+
+    /* ── Report category filter tabs ── */
+    .report-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .report-tab {
+      border: none;
+      background: #e2e8f0;
+      color: #334155;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: .2s;
+    }
+
+    .report-tab:hover {
+      background: #cbd5e1;
+    }
+
+    .report-tab.active {
+      background: #1a3a6b;
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>Generate Financial Reports</h2>
+            <p>Select a report type, fill in the required details, and generate your official financial report.</p>
+          </div>
+        </div>
+
+        <!-- Report Type Cards (Official BFDP/BFR COA/DBM Annexes) -->
+        <div class="page-header-info" style="margin-bottom:.75rem;">
+          <p style="font-size:.8rem;color:#64748b;"><i class="bi bi-info-circle" style="color:#1a3a6b;"></i> &nbsp;All
+            reports follow the official <strong>COA/DBM-prescribed BFDP/BFR Annex formats</strong>. Figures are
+            auto-computed from your recorded transactions.</p>
+        </div>
+
+        <div class="report-tabs">
+          <button class="report-tab active" data-filter="all">All</button>
+          <button class="report-tab" data-filter="daily">Daily</button>
+          <button class="report-tab" data-filter="monthly">Monthly</button>
+          <button class="report-tab" data-filter="quarterly">Quarterly</button>
+          <button class="report-tab" data-filter="yearly">Yearly</button>
+          <button class="report-tab" data-filter="procurement">Procurement</button>
+        </div>
+
+        <div class="report-cards-grid section-gap">
+
+          <div class="report-card" data-category="daily">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0e7490,#0891b2);">
+              <div class="report-card-icon"><i class="bi bi-calendar-day"></i></div>
+              <div class="report-card-title">BFR-1: Daily Collections &amp; Disbursements</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Itemized register of collections and disbursements for a single day.
+                Switch to Monthly/Quarterly/Yearly/Custom anytime from the form.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#0891b2;color:#fff;"
+                  onclick="doQuickDownload('bfr1_daily_collections')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr1_daily_collections')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="yearly">
+            <div class="report-card-header">
+              <div class="report-card-icon"><i class="bi bi-bar-chart-line"></i></div>
+              <div class="report-card-title">BFR-2: Actual Income &amp; Expenditure</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Statement of actual income and expenditure for past fiscal year — Part A
+                (Income) and Part B (Expenditures by PS/MOOE/CO). <em>BFDP Form No. 2.</em></div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-primary" onclick="doQuickDownload('bfr2_income_expenditure')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr2_income_expenditure')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="yearly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#15803d,#16a34a);">
+              <div class="report-card-icon"><i class="bi bi-clipboard2-data"></i></div>
+              <div class="report-card-title">BFR-3: 20% Component of NTA</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Priority development projects funded from the 20% NTA utilization with
+                ranking and cumulative totals. <em>AIP Form No. 4.</em></div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-secondary" onclick="doQuickDownload('bfr3_nta_component')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr3_nta_component')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="yearly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#b45309,#f59e0b);">
+              <div class="report-card-icon"><i class="bi bi-cart3"></i></div>
+              <div class="report-card-title">BFR-4: Annual Procurement Plan</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Annual procurement plan with item description, total cost, and target
+                quarter of implementation.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#f59e0b;color:#fff;"
+                  onclick="doQuickDownload('bfr4_procurement_plan')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr4_procurement_plan')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="quarterly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0369a1,#0284c7);">
+              <div class="report-card-icon"><i class="bi bi-award"></i></div>
+              <div class="report-card-title">BFR-5: List of Notices of Award</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Quarterly list of awarded contracts — date, project, procurement type,
+                supplier, and amount.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#0284c7;color:#fff;"
+                  onclick="doQuickDownload('bfr5_notice_of_award')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr5_notice_of_award')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="monthly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);">
+              <div class="report-card-icon"><i class="bi bi-journal-text"></i></div>
+              <div class="report-card-title">BFR-6: Monthly Collections &amp; Disbursements</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Itemized two-column register of all collections and disbursements for a
+                chosen Daily/Monthly/Quarterly period.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#7c3aed;color:#fff;"
+                  onclick="doQuickDownload('bfr6_monthly_collections')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr6_monthly_collections')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="yearly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#991b1b,#dc2626);">
+              <div class="report-card-icon"><i class="bi bi-bank"></i></div>
+              <div class="report-card-title">BFR-7: Statement of Receipts &amp; Expenditures</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Official annual statement of receipts &amp; expenditures — local sources,
+                IRA, MOOE, PS, CO. <em>Annex B, JMC 2018-1.</em></div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-danger" onclick="doQuickDownload('bfr7_statement_receipts')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('bfr7_statement_receipts')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="monthly">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0f766e,#16a34a);">
+              <div class="report-card-icon"><i class="bi bi-wallet2"></i></div>
+              <div class="report-card-title">Fund Status &amp; Budget Utilization</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Summary of total budget, income, expenses, net balance and allocation
+                utilization.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm btn-success" onclick="doQuickDownload('fund_status')"><i
+                    class="bi bi-file-earmark-pdf"></i> Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('fund_status')"><i class="bi bi-eye"></i>
+                  Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Procurement Documents (Purchase Request → Payment cycle) ── -->
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0e7490,#0891b2);">
+              <div class="report-card-icon"><i class="bi bi-cart-plus"></i></div>
+              <div class="report-card-title">Purchase Request</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Request form for items/services to be procured — quantity, unit,
+                description, unit cost, and purpose.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#0891b2;color:#fff;"
+                  onclick="doQuickDownload('purchase_request')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('purchase_request')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#c2410c,#ea580c);">
+              <div class="report-card-icon"><i class="bi bi-list-check"></i></div>
+              <div class="report-card-title">Canvass</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Comparative price canvass among suppliers for a requested purchase, prior
+                to the formal Abstract of Quotations.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#ea580c;color:#fff;"
+                  onclick="doQuickDownload('canvass')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('canvass')"><i class="bi bi-eye"></i>
+                  Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#b45309,#f59e0b);">
+              <div class="report-card-icon"><i class="bi bi-clipboard2-check"></i></div>
+              <div class="report-card-title">Abstract of Quotations</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Formal comparison of supplier quotations with BAC member certification
+                and recommendation of the lowest calculated bid.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#f59e0b;color:#fff;"
+                  onclick="doQuickDownload('abstract_quotations')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('abstract_quotations')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#3730a3,#4338ca);">
+              <div class="report-card-icon"><i class="bi bi-bag-check"></i></div>
+              <div class="report-card-title">Purchase Order</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Formal order issued to the winning supplier — items, unit cost, delivery
+                and payment terms.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#4338ca;color:#fff;"
+                  onclick="doQuickDownload('purchase_order')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('purchase_order')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#be123c,#be185d);">
+              <div class="report-card-icon"><i class="bi bi-award"></i></div>
+              <div class="report-card-title">Notice of Award</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Formal notice to the winning supplier confirming acceptance of their
+                quotation and the awarded contract amount.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#be185d;color:#fff;"
+                  onclick="doQuickDownload('notice_of_award')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('notice_of_award')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#047857,#059669);">
+              <div class="report-card-icon"><i class="bi bi-clipboard2-pulse"></i></div>
+              <div class="report-card-title">Inspection &amp; Acceptance Report</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Certifies that delivered items were inspected and accepted against the
+                Purchase Order.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#059669;color:#fff;"
+                  onclick="doQuickDownload('inspection_acceptance')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('inspection_acceptance')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-card" data-category="procurement">
+            <div class="report-card-header" style="background:linear-gradient(135deg,#0369a1,#0284c7);">
+              <div class="report-card-icon"><i class="bi bi-receipt"></i></div>
+              <div class="report-card-title">Disbursement Voucher</div>
+            </div>
+            <div class="report-card-body">
+              <div class="report-card-desc">Authorizes payment to a supplier/payee, with budget, cash, and legality
+                certifications plus payment/check details.</div>
+              <div class="report-card-actions">
+                <button class="btn btn-sm" style="background:#0284c7;color:#fff;"
+                  onclick="doQuickDownload('disbursement_voucher')"><i class="bi bi-file-earmark-pdf"></i>
+                  Generate</button>
+                <button class="btn btn-sm btn-outline" onclick="previewReport('disbursement_voucher')"><i
+                    class="bi bi-eye"></i> Preview</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Previous Reports -->
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+            <div class="card-title"><i class="bi bi-folder2-open" style="color:#1a3a6b;margin-right:6px;"></i>Submitted
+              Reports</div>
+            <div class="search-bar"><i class="bi bi-search"></i><input type="text" id="search-reports"
+                placeholder="Search reports..." oninput="liveSearch('search-reports','reports-list-tbody')"></div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Period</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reports-list-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+          <div class="card-header">
+            <div class="card-title"><i class="bi bi-archive" style="color:#1a3a6b;margin-right:6px;"></i>Archive by
+              Period</div>
+          </div>
+          <div class="card-body">
+            <div class="archive-toolbar">
+              <div class="archive-toolbar-stats" id="archive-toolbar-stats"></div>
+              <div class="archive-jump-bar" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="form-group" style="margin:0;">
+                  <label>Jump to Year</label>
+                  <select id="jump-year" class="form-control"></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Month (optional)</label>
+                  <select id="jump-month" class="form-control">
+                    <option value="">Whole year</option>
+                  </select>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="jumpToArchivePeriod()">
+                  <i class="bi bi-search"></i> Go
+                </button>
+              </div>
+            </div>
+            <div id="report-archive-tree" class="archive-tree-pro"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Report Generator Modal -->
+  <div class="modal-overlay" id="report-modal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <span class="modal-title" id="report-modal-title"><i class="bi bi-file-earmark-text"
+            style="margin-right:6px;"></i>Generate Report</span>
+        <button class="modal-close" onclick="hideModal('report-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom:1rem;">
+          <i class="bi bi-info-circle" style="margin-right:6px;"></i>
+          Data from your financial records will be <strong>automatically populated</strong> into the report. Fill in the
+          signature and period fields below.
+        </div>
+        <div id="report-form-fields"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('report-modal')">Cancel</button>
+        <button class="btn btn-outline" onclick="doDownloadPDF()"><i class="bi bi-file-earmark-pdf"></i> Download
+          PDF</button>
+        <button class="btn btn-secondary" onclick="doSubmitReport()"><i class="bi bi-send"></i> Submit to Super
+          Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script src="../../assets/js/reports.js"></script>
+  <script>
+
+    const RTYPE_LABEL = {
+      bfr1_daily_collections: 'BFR-1: Daily Collections',
+      bfr2_income_expenditure: 'BFR-2: Income & Expenditure',
+      bfr3_nta_component: 'BFR-3: 20% NTA Component',
+      bfr4_procurement_plan: 'BFR-4: Procurement Plan',
+      bfr5_notice_of_award: 'BFR-5: Notice of Award',
+      bfr6_monthly_collections: 'BFR-6: Monthly Collections',
+      bfr7_statement_receipts: 'BFR-7: Statement of Receipts',
+      purchase_request: 'Purchase Request',
+      canvass: 'Canvass',
+      abstract_quotations: 'Abstract of Quotations',
+      purchase_order: 'Purchase Order',
+      notice_of_award: 'Notice of Award',
+      inspection_acceptance: 'Inspection & Acceptance Report',
+      disbursement_voucher: 'Disbursement Voucher',
+    };
+
+    const user = requireAuth(['treasurer']);
+    let currentReportType = null;
+    const ARCHIVE_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    (async () => {
+    if (user) {
+      await renderSidebar('reports');
+      await renderTopbar('Generate Reports', 'Create and submit official financial reports');
+      loadReportsList();
+      renderArchiveTree('report-archive-tree', user.barangayId, 'treasurer');
+      populateArchiveJumpBar(user.barangayId, 'treasurer');
+      initReportTabs();
+    }
+    })();
+
+    // ── Report category filter tabs ──
+    function initReportTabs() {
+      const tabs = document.querySelectorAll('.report-tab');
+      const cards = document.querySelectorAll('.report-card');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          const filter = tab.dataset.filter;
+
+          cards.forEach(card => {
+            if (filter === 'all') {
+              card.style.display = '';
+            } else {
+              card.style.display = card.dataset.category === filter ? '' : 'none';
+            }
+          });
+        });
+      });
+    }
+
+    async function resubmitReport(id) {
+      const report = await DB.find('reports', { id: id });
+      if (!report) return;
+
+      currentReportType = report.type;
+      const formContainer = document.getElementById('report-form-fields');
+      formContainer.dataset.resubmitId = id;
+
+      const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+      const cfg = allTypes[report.type] || {};
+      document.getElementById('report-modal-title').innerHTML =
+        `<i class="bi ${cfg.icon || 'bi-file-earmark-text'}" style="margin-right:6px;"></i>Re-submit ${cfg.label || report.type}`;
+
+      renderReportFormFields(formContainer, report.type, {
+        ...(report.data || {}),
+        periodType: report.data?.periodType || 'monthly',
+        preparedBy: report.data?.preparedBy || await DB.getBarangay(user.barangayId)?.treasurer || user.fullName,
+        approvedBy: report.data?.approvedBy || await DB.getBarangay(user.barangayId)?.punongBarangay || '',
+        certifiedBy: report.data?.certifiedBy || '',
+        userFullName: user.fullName,
+      });
+      showModal('report-modal');
+    }
+
+    function showReportNotes(notes) {
+      if (!notes) return;
+      alert(notes);
+    }
+
+    function pad2Local(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function getISOWeek(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // Human-readable range for an ISO week, e.g. "Jun 1 – 7, 2026"
+    function getWeekRangeLabel(year, week) {
+      const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+      const dow = simple.getUTCDay() || 7;
+      const monday = new Date(simple);
+      if (dow <= 4) monday.setUTCDate(simple.getUTCDate() - dow + 1);
+      else monday.setUTCDate(simple.getUTCDate() + 8 - dow);
+      const sunday = new Date(monday);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
+
+      const sameMonth = monday.getUTCMonth() === sunday.getUTCMonth();
+      const startStr = monday.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+      const endStr = sameMonth
+        ? sunday.toLocaleDateString('en-PH', { day: 'numeric' })
+        : sunday.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+      return `${startStr} – ${endStr}, ${sunday.getUTCFullYear()}`;
+    }
+
+    function getReportAnchorDate(report) {
+      const raw = report?.data?.dateFrom || report?.period || report?.submittedAt;
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? new Date(report?.submittedAt || Date.now()) : parsed;
+    }
+
+    async function buildReportArchive(barangayId, module = null) {
+      const reports = await DB.filter('reports', { barangayId: barangayId });
+      const tree = {};
+      reports.forEach(report => {
+        const d = getReportAnchorDate(report);
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1;
+        const week = getISOWeek(d);
+        const day = `${year}-${pad2Local(month)}-${pad2Local(d.getDate())}`;
+
+        if (!tree[year]) tree[year] = {};
+        if (!tree[year][month]) tree[year][month] = {};
+        if (!tree[year][month][week]) tree[year][month][week] = {};
+        if (!tree[year][month][week][day]) tree[year][month][week][day] = [];
+        tree[year][month][week][day].push(report);
+      });
+      return tree;
+    }
+
+    function countLeaves(node) {
+      return Object.values(node || {}).reduce((sum, value) => {
+        if (Array.isArray(value)) return sum + value.length;
+        return sum + countLeaves(value);
+      }, 0);
+    }
+
+    // Populates the small stats strip in the archive toolbar
+    async function renderArchiveToolbarStats(barangayId, module) {
+      const el = document.getElementById('archive-toolbar-stats');
+      if (!el) return;
+      const reports = await DB.filter('reports', { barangayId: barangayId });
+      const years = new Set(reports.map(r => getReportAnchorDate(r).getFullYear()));
+      const approved = reports.filter(r => r.status === 'approved').length;
+      const pending = reports.filter(r => !r.status || r.status === 'pending').length;
+
+      el.innerHTML = `
+        <div class="archive-stat"><span class="archive-stat-value">${reports.length}</span><span class="archive-stat-label">Total Reports</span></div>
+        <div class="archive-stat"><span class="archive-stat-value">${years.size}</span><span class="archive-stat-label">Years on File</span></div>
+        <div class="archive-stat"><span class="archive-stat-value" style="color:#16a34a;">${approved}</span><span class="archive-stat-label">Approved</span></div>
+        <div class="archive-stat"><span class="archive-stat-value" style="color:#d97706;">${pending}</span><span class="archive-stat-label">Pending</span></div>
+      `;
+    }
+
+    function renderArchiveTree(containerId, barangayId, module = null) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      renderArchiveToolbarStats(barangayId, module);
+
+      const tree = buildReportArchive(barangayId, module);
+      const years = Object.keys(tree).sort((a, b) => Number(b) - Number(a));
+
+      if (!years.length) {
+        container.innerHTML = `
+          <div class="archive-empty-pro">
+            <i class="bi bi-archive"></i>
+            <div style="font-weight:600;color:#64748b;">No reports on file yet</div>
+            <div style="font-size:.82rem;">Submitted reports will be organized here by year, month, and week.</div>
+          </div>`;
+        return;
+      }
+
+      function renderMonths(yearNode, year) {
+        return Object.keys(yearNode).sort((a, b) => Number(b) - Number(a)).map(month => `
+          <div class="archive-node" data-level="month" data-node-id="y-${year}-m-${month}" style="margin:0;">
+            <div class="archive-header" style="padding:.5rem .6rem .5rem 1.4rem;" onclick="toggleArchiveNode(this)">
+              <div class="archive-header-left">
+                <i class="bi bi-caret-right-fill archive-caret"></i>
+                <i class="bi bi-folder2 archive-level-icon"></i>
+                <span class="archive-label">${ARCHIVE_MONTH_NAMES[Number(month) - 1] || month} ${year}</span>
+              </div>
+              <span class="badge badge-secondary">${countLeaves(yearNode[month])}</span>
+            </div>
+            <div class="archive-children" style="display:none;">
+              ${renderWeeks(yearNode[month], year, month)}
+            </div>
+          </div>`).join('');
+      }
+
+      function renderWeeks(monthNode, year, month) {
+        return Object.keys(monthNode).sort((a, b) => Number(b) - Number(a)).map(week => `
+          <div class="archive-node" data-level="week" data-node-id="y-${year}-m-${month}-w-${week}" style="margin:0;">
+            <div class="archive-header" style="padding:.45rem .6rem .45rem 2.2rem;" onclick="toggleArchiveNode(this)">
+              <div class="archive-header-left">
+                <i class="bi bi-caret-right-fill archive-caret"></i>
+                <i class="bi bi-calendar-week archive-level-icon" style="font-size:.78rem;"></i>
+                <span class="archive-label" style="font-weight:500;">${getWeekRangeLabel(Number(year), Number(week))}<span class="archive-sublabel">Week ${week}</span></span>
+              </div>
+              <span class="badge badge-light">${countLeaves(monthNode[week])}</span>
+            </div>
+            <div class="archive-children" style="display:none;">
+              ${renderDays(monthNode[week])}
+            </div>
+          </div>`).join('');
+      }
+
+      function renderDays(weekNode) {
+        return Object.keys(weekNode).sort((a, b) => new Date(b) - new Date(a)).map(day => {
+          const reports = weekNode[day] || [];
+          return `
+            <div class="archive-node" data-level="day" style="margin:0;">
+              <div class="archive-header" style="padding:.4rem .6rem .4rem 3rem;" onclick="toggleArchiveNode(this)">
+                <div class="archive-header-left">
+                  <i class="bi bi-caret-right-fill archive-caret"></i>
+                  <i class="bi bi-calendar-date archive-level-icon" style="font-size:.75rem;"></i>
+                  <span class="archive-label" style="font-weight:500;">${formatDate(day)}</span>
+                </div>
+                <span class="badge badge-light">${reports.length}</span>
+              </div>
+              <div class="archive-children" style="display:none;padding:.15rem 1rem .15rem 3.6rem;">
+                ${reports.map(report => `
+                  <div class="archive-report-row">
+                    <span class="archive-report-title">${RTYPE_LABEL[report.type] || report.type}</span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                      <span class="badge ${report.status === 'approved' ? 'badge-approved' : report.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${report.status || 'pending'}</span>
+                      <button class="btn btn-xs btn-outline" onclick="event.stopPropagation(); redownloadReport(${report.id})"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      container.innerHTML = years.map(year => `
+        <div class="archive-node" data-level="year" data-node-id="y-${year}">
+          <div class="archive-header" style="padding:.65rem .75rem;" onclick="toggleArchiveNode(this)">
+            <div class="archive-header-left">
+              <i class="bi bi-caret-right-fill archive-caret"></i>
+              <i class="bi bi-calendar3 archive-level-icon" style="font-size:1rem;"></i>
+              <span class="archive-label" style="font-size:.95rem;font-weight:700;">${year}</span>
+            </div>
+            <span class="badge badge-primary">${countLeaves(tree[year])} reports</span>
+          </div>
+          <div class="archive-children" style="display:none;">
+            ${renderMonths(tree[year], year)}
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleArchiveNode(headerEl) {
+      const children = headerEl.parentElement?.querySelector(':scope > .archive-children');
+      if (!children) return;
+      const caret = headerEl.querySelector('.archive-caret');
+      const isOpen = children.style.display !== 'none';
+      children.style.display = isOpen ? 'none' : 'block';
+      if (caret) {
+        caret.classList.toggle('bi-caret-right-fill', isOpen);
+        caret.classList.toggle('bi-caret-down-fill', !isOpen);
+      }
+    }
+
+    window.toggleArchiveNode = toggleArchiveNode;
+
+    function populateArchiveJumpBar(barangayId, module = null) {
+      const tree = buildReportArchive(barangayId, module);
+      const years = Object.keys(tree).sort((a, b) => Number(b) - Number(a));
+      const yearSel = document.getElementById('jump-year');
+      const monthSel = document.getElementById('jump-month');
+      if (!yearSel || !monthSel) return;
+
+      yearSel.innerHTML = years.length
+        ? years.map(year => `<option value="${year}">${year}</option>`).join('')
+        : '<option value="">No data</option>';
+
+      monthSel.innerHTML = '<option value="">Whole year</option>' + ARCHIVE_MONTH_NAMES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+    }
+
+    function jumpToArchivePeriod() {
+      const year = document.getElementById('jump-year')?.value;
+      const month = document.getElementById('jump-month')?.value;
+      if (!year) {
+        showToast('No archived reports to jump to.', 'error');
+        return;
+      }
+
+      const nodeId = month ? `y-${year}-m-${month}` : `y-${year}`;
+      const target = document.querySelector(`[data-node-id="${nodeId}"]`);
+      if (!target) {
+        showToast('No reports found for that period.', 'error');
+        return;
+      }
+
+      let node = target;
+      while (node) {
+        const header = node.querySelector(':scope > .archive-header');
+        const children = node.querySelector(':scope > .archive-children');
+        if (children) children.style.display = 'block';
+        if (header) {
+          const caret = header.querySelector('.archive-caret');
+          caret?.classList.remove('bi-caret-right-fill');
+          caret?.classList.add('bi-caret-down-fill');
+        }
+        node = node.parentElement?.closest('.archive-node');
+      }
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('archive-highlight');
+      setTimeout(() => target.classList.remove('archive-highlight'), 1600);
+    }
+
+    window.jumpToArchivePeriod = jumpToArchivePeriod;
+    window.populateArchiveJumpBar = populateArchiveJumpBar;
+
+    function loadReportsList() {
+      const reports = DB.filter(
+        'reports',
+        r => r.barangayId === user.barangayId &&
+          r.module === 'treasurer'
+      );
+      const tbody = document.getElementById('reports-list-tbody');
+      if (!reports.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="table-empty"><i class="bi bi-folder"></i>No reports submitted yet</td></tr>';
+        return;
+      }
+      renderArchiveTree('report-archive-tree', user.barangayId, 'treasurer');
+
+      tbody.innerHTML = reports
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+        .map(r => `<tr>
+    <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.title}">${r.title}</td>
+    <td><span class="badge badge-primary" style="font-size:.72rem;">${RTYPE_LABEL[r.type] || r.type}</span></td>
+    <td style="font-size:.85rem;">${r.period || '—'}</td>
+    <td style="font-size:.82rem;">${formatDateShort(r.submittedAt)}</td>
+    <td>
+      <span class="badge ${r.status === 'approved' ? 'badge-approved' : r.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}" style="font-size:.72rem;">
+        ${r.status === 'approved' ? '✓ Approved' : r.status === 'rejected' ? '✗ Rejected' : '⏳ Pending'}
+      </span>
+    </td>
+    <td>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn btn-xs btn-outline" onclick="redownloadReport(${r.id})" title="Re-download PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+        ${r.status === 'rejected' ? `<button class="btn btn-xs btn-primary" onclick="resubmitReport(${r.id})" title="Re-submit"><i class="bi bi-send"></i> Re-submit</button>` : ''}
+        ${r.notes ? `<button class="btn btn-xs btn-light" onclick="showReportNotes('${(r.notes || '').replace(/'/g, '&#39;')}')" title="View Notes"><i class="bi bi-chat-text"></i></button>` : ''}
+      </div>
+    </td>
+  </tr>`).join('');
+    }
+
+    // ── Required fields per report type for validation ───────────────
+    const REQUIRED_FIELDS = {
+      bfr1_daily_collections: { 'rf-period': 'Reporting Period', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr2_income_expenditure: { 'rf-fiscalYear': 'Fiscal Year', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr3_nta_component: { 'rf-fiscalYear': 'Fiscal Year', 'rf-totalNTA': 'Total NTA', 'rf-projects': 'Priority Projects', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr4_procurement_plan: { 'rf-fiscalYear': 'Fiscal Year', 'rf-items': 'Procurement Items', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr5_notice_of_award: { 'rf-fiscalYear': 'Fiscal Year', 'rf-awards': 'Award Entries', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr6_monthly_collections: { 'rf-period': 'Reporting Period', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      bfr7_statement_receipts: { 'rf-currentFY': 'Actual Year', 'rf-budgetFY': 'Budget Year', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      purchase_request: { 'rf-prNumber': 'P.R. No.', 'rf-prDate': 'Date', 'rf-items': 'Items', 'rf-purpose': 'Purpose', 'rf-requestedBy': 'Requested By', 'rf-approvedBy': 'Approved By' },
+      canvass: { 'rf-canvassDate': 'Date', 'rf-suppliers': 'Suppliers', 'rf-items': 'Items', 'rf-canvassedBy': 'Canvassed By', 'rf-approvedBy': 'Noted By' },
+      abstract_quotations: { 'rf-implementingOffice': 'Implementing Office', 'rf-aqDate': 'Date', 'rf-modeOfProcurement': 'Mode of Procurement', 'rf-suppliers': 'Suppliers', 'rf-items': 'Items', 'rf-skCouncilors': 'BAC Members', 'rf-skTreasurer': 'Prepared By', 'rf-skChairperson': 'Approved By' },
+      purchase_order: { 'rf-poNumber': 'P.O. No.', 'rf-poDate': 'Date', 'rf-supplier': 'Supplier', 'rf-items': 'Items', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      notice_of_award: { 'rf-noaNumber': 'NOA No.', 'rf-noaDate': 'Date', 'rf-supplier': 'Awarded Supplier', 'rf-projectTitle': 'Project/Item Description', 'rf-amount': 'Contract Amount', 'rf-modeOfProcurement': 'Mode of Procurement', 'rf-preparedBy': 'Prepared By', 'rf-approvedBy': 'Approved By' },
+      inspection_acceptance: { 'rf-iarNumber': 'IAR No.', 'rf-iarDate': 'Date', 'rf-supplier': 'Supplier', 'rf-items': 'Items', 'rf-dateInspected': 'Date Inspected', 'rf-inspectedBy': 'Inspected By', 'rf-receivedBy': 'Received By' },
+      disbursement_voucher: { 'rf-dvNumber': 'DV No.', 'rf-dvDate': 'Date', 'rf-payee': 'Payee', 'rf-particular': 'Particulars', 'rf-amount': 'Amount', 'rf-budgetOfficer': 'Budget Monitoring Officer', 'rf-skTreasurer': 'Barangay Treasurer', 'rf-skChairperson': 'Punong Barangay' },
+    };
+
+    function validateReportForm(type) {
+      const required = REQUIRED_FIELDS[type] || {};
+      let valid = true;
+      // Clear previous errors
+      document.querySelectorAll('.field-error').forEach(e => e.remove());
+      document.querySelectorAll('.input-error').forEach(e => e.classList.remove('input-error'));
+
+      for (const [fieldId, label] of Object.entries(required)) {
+        const el = document.getElementById(fieldId);
+        if (!el) continue;
+        const val = el.tagName === 'TEXTAREA' ? el.value.trim() : el.value.trim();
+        if (!val) {
+          el.classList.add('input-error');
+          const err = document.createElement('div');
+          err.className = 'field-error';
+          err.innerHTML = `<i class="bi bi-exclamation-circle"></i> ${label} is required.`;
+          el.parentNode.insertBefore(err, el.nextSibling);
+          if (valid) el.focus();
+          valid = false;
+        }
+      }
+      if (!valid) showToast('Please fill in all required fields before submitting.', 'error');
+      return valid;
+    }
+
+    async function openReportModal(type) {
+      currentReportType = type;
+      const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+      const cfg = allTypes[type] || {};
+      const formContainer = document.getElementById('report-form-fields');
+      formContainer.dataset.resubmitId = '';
+      document.getElementById('report-modal-title').innerHTML =
+        `<i class="bi ${cfg.icon || 'bi-file-earmark-text'}" style="margin-right:6px;"></i>${cfg.label || type}`;
+      renderReportFormFields(formContainer, type, {
+        periodType: 'daily',
+        preparedBy: await DB.getBarangay(user.barangayId)?.treasurer || user.fullName,
+        approvedBy: await DB.getBarangay(user.barangayId)?.punongBarangay || '',
+        certifiedBy: '',
+        userFullName: user.fullName,
+      });
+      showModal('report-modal');
+    }
+
+    function getFormData() {
+      return collectReportFormData(currentReportType);
+    }
+
+    async function doDownloadPDF() {
+      if (!validateReportForm(currentReportType)) return;
+      const fd = getFormData();
+      await downloadReport(currentReportType, fd, user.barangayId, 'treasurer');
+    }
+
+    async function doQuickDownload(type) {
+      const brgy = await DB.getBarangay(user.barangayId) || {};
+      const fd = {
+        periodType: 'monthly',
+        period: computePeriodRange('monthly').label,
+        preparedBy: brgy.treasurer || user.fullName,
+        approvedBy: brgy.punongBarangay || '',
+        fiscalYear: new Date().getFullYear(),
+      };
+      await downloadReport(type, fd, user.barangayId, 'treasurer');
+    }
+
+    async function doSubmitReport() {
+      if (!validateReportForm(currentReportType)) return;
+
+      const fd = getFormData();
+      const allTypes = { ...REPORT_TYPES, ...SK_REPORT_TYPES };
+      const cfg = allTypes[currentReportType] || {};
+      const brgy = await DB.getBarangay(user.barangayId);
+      const title = `${cfg.label || currentReportType} — ${fd.period || fd.fiscalYear || today()}`;
+      const formContainer = document.getElementById('report-form-fields');
+
+      // Check if this is a re-submission
+      const resubmitId = formContainer?.dataset?.resubmitId;
+      
+      showToast('Generating secure report file...', 'info');
+      const blob = await getReportBlob(currentReportType, fd, user.barangayId, 'treasurer');
+      
+      const formDataUpload = new FormData();
+      formDataUpload.append('pdf_file', blob, 'report.pdf');
+      
+      const metadata = {
+        resubmitId: resubmitId || null,
+        barangayId: user.barangayId,
+        module: 'treasurer',
+        title: title,
+        type: currentReportType,
+        period: fd.period || fd.fiscalYear || today(),
+        data: fd
+      };
+      formDataUpload.append('metadata', JSON.stringify(metadata));
+
+      const res = await fetch('/updated_capstone/api/upload_report.php', {
+        method: 'POST',
+        body: formDataUpload
+      });
+      const uploadResult = await res.json();
+      if(uploadResult.status !== 'success') {
+          throw new Error(uploadResult.message || 'Upload failed');
+      }
+      
+      const insertedReport = uploadResult.data;
+
+      if (!resubmitId) {
+
+        if (currentReportType === 'disbursement_voucher') {
+          const existingDvExpense = await DB.find('expenses', { reportId: insertedReport.id });
+          if (!existingDvExpense) {
+            await DB.insert('expenses', {
+              barangayId: user.barangayId,
+              category: 'Procurement',
+              description: `Disbursement Voucher: ${fd.payee || title}`,
+              amount: parseFloat(fd.amount || 0),
+              dateSpent: fd.dvDate || today(),
+              status: 'pending',
+              userId: user.id,
+              reportId: insertedReport.id,
+              createdAt: nowISO(),
+            });
+          }
+        }
+
+        // ── Notify ALL Super Admins ──
+        const superAdmins = await DB.filter('users', { roleId: 1 && u.status === 'active' });
+        if (superAdmins.length === 0) {
+          console.warn('No active super admins found to notify.');
+        }
+        superAdmins.forEach(sa => {
+          DB.notify(
+            sa.id,
+            '📋 New Report Submitted',
+            `${cfg.label || currentReportType} submitted by ${user.fullName} from Barangay ${brgy?.name || ''} is pending your review.`,
+            'info'
+          );
+        });
+
+        // ── Notify the Treasurer themselves (confirmation) ──
+        DB.notify(
+          user.id,
+          '✅ Report Submitted Successfully',
+          `Your ${cfg.label || currentReportType} has been submitted and is now pending Super Admin review.`,
+          'success'
+        );
+      }
+      await DB.log(user.id, 'SUBMIT_REPORT', `Submitted ${cfg.label || currentReportType} for ${brgy?.name || ''}`, 'Reports');
+
+      hideModal('report-modal');
+      showToast('Report submitted! Super Admin has been notified.', 'success');
+      loadReportsList();
+
+      // Update notification badge immediately
+      updateNotifBadge();
+      renderNotifs();
+    }
+
+    function previewReport(type) {
+      openReportModal(type);
+    }
+
+    async function redownloadReport(id) {
+      const r = await DB.find('reports', { id: id });
+      if (r) downloadReport(r.type, r.data || {}, r.barangayId, 'treasurer');
+    }
+  </script>
+</body>
+
+</html>

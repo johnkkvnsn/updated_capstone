@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Logs — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="main-content">
+    <header class="topbar" id="topbar"></header>
+    <main class="page-body">
+      <div class="page-header">
+        <div class="page-header-info"><h2>Access Logs</h2><p>Monitor user login activities and system access events.</p></div>
+        <div class="page-header-actions">
+          <button class="btn btn-light btn-sm" onclick="exportLogs()"><i class="bi bi-download"></i> Export CSV</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar-search"><i class="bi bi-search"></i>
+            <input type="text" class="form-control" id="search-logs" placeholder="Search logs..." oninput="filterLogs()"></div>
+          <select class="filter-select" id="filter-action" onchange="filterLogs()">
+            <option value="">All Actions</option>
+            <option value="LOGIN">Login</option>
+            <option value="LOGOUT">Logout</option>
+            <option value="LOGIN_FAILED">Failed Login</option>
+          </select>
+          <input type="date" class="filter-select" id="filter-date" onchange="filterLogs()">
+        </div>
+
+        <div class="table-wrapper">
+          <table><thead><tr><th>#</th><th>User</th><th>Role</th><th>Action</th><th>Description</th><th>IP Address</th><th>Date & Time</th><th>Status</th></tr></thead>
+          <tbody id="logs-tbody"></tbody></table>
+        </div>
+        <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="log-info" style="font-size:.82rem;color:#64748b;"></span>
+          <div id="log-btns" style="display:flex;gap:.35rem;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../../assets/js/db.js"></script>
+<script src="../../assets/js/utils.js"></script>
+<script src="../../assets/js/sidebar.js"></script><script src="../../assets/js/chatbot.js"></script><script src="../../assets/js/enhancements.js"></script>
+<script>
+const user = requireAuth(['admin']);
+let allLogs = []; let curPage = 1; const PER = 15;
+
+(async () => {
+if (user) {
+  await renderSidebar('logs');
+  await renderTopbar('Access Logs', 'User login activities and system access events');
+  load();
+}
+})();
+
+async function load() {
+  allLogs = (await DB.get('audit_logs')).filter(l => ['LOGIN','LOGOUT','LOGIN_FAILED','REGISTER'].includes(l.action)).reverse();
+  renderData(allLogs);
+}
+
+async function filterLogs() {
+  const q = document.getElementById('search-logs').value.toLowerCase();
+  const ac = document.getElementById('filter-action').value;
+  const dt = document.getElementById('filter-date').value;
+  const filtered = [];
+  for (const l of allLogs) {
+    const lu = await DB.find('users', { id: l.userId });
+    if ((!q || l.description.toLowerCase().includes(q) || (lu?.fullName||'').toLowerCase().includes(q)) &&
+        (!ac || l.action === ac) && (!dt || l.createdAt.startsWith(dt))) {
+      filtered.push(l);
+    }
+  }
+  curPage = 1; renderData(filtered);
+}
+
+async function renderData(data) {
+  const paged = paginateTable(data, curPage, PER);
+  const tbody = document.getElementById('logs-tbody');
+  tbody.innerHTML = !paged.items.length
+    ? '<tr><td colspan="8" class="table-empty"><i class="bi bi-journal-text"></i>No log entries</td></tr>'
+    : (await Promise.all(paged.items.map(async (l, i) => {
+      const lu = await DB.find('users', { id: l.userId });
+      const isSuccess = l.action === 'LOGIN' || l.action === 'REGISTER';
+      const isFail = l.action === 'LOGIN_FAILED';
+      return `<tr>
+        <td style="color:#94a3b8;font-size:.78rem;">${(curPage-1)*PER+i+1}</td>
+        <td style="font-weight:600;">${lu?.fullName||'Unknown'}</td>
+        <td>${lu ? `<span class="badge badge-primary" style="font-size:.7rem;">${DB.getRoleLabel(lu.roleId)}</span>` : '—'}</td>
+        <td><span class="badge ${isSuccess?'badge-success':isFail?'badge-danger':'badge-secondary'}" style="font-size:.7rem;">${l.action}</span></td>
+        <td style="font-size:.82rem;">${l.description}</td>
+        <td style="font-size:.78rem;color:#64748b;">${l.ipAddress||'—'}</td>
+        <td style="font-size:.78rem;white-space:nowrap;">${formatDateTime(l.createdAt)}</td>
+        <td>${isSuccess?'<span class="badge badge-success">Success</span>':isFail?'<span class="badge badge-danger">Failed</span>':'<span class="badge badge-secondary">Info</span>'}</td>
+      </tr>`;
+    }))).join('');
+
+  document.getElementById('log-info').textContent = `${Math.min((curPage-1)*PER+1,data.length)}–${Math.min(curPage*PER,data.length)} of ${data.length}`;
+  const btns = document.getElementById('log-btns'); btns.innerHTML = '';
+  for (let i=1;i<=paged.pages;i++) {
+    const b=document.createElement('button'); b.textContent=i;
+    b.className='btn btn-xs '+(i===curPage?'btn-primary':'btn-light');
+    b.onclick=()=>{curPage=i;renderData(data);}; btns.appendChild(b);
+  }
+}
+
+async function exportLogs() {
+  exportCSV(await Promise.all(allLogs.map(async l=>{const u=await DB.find('users', { id: l.userId });return{User:u?.fullName||'System',Action:l.action,Description:l.description,IP:l.ipAddress,Timestamp:l.createdAt};})), 'BFMSS_Access_Logs');
+}
+</script>
+</body>
+</html>

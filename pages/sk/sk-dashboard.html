@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SK Dashboard — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i>
+          <strong>SK Fund Reminder:</strong> SK funds must be utilized for youth-related programs and projects. Ensure
+          all expenditures are properly documented and within the approved budget.
+        </div>
+
+        <div class="stats-grid">
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;">
+              <div class="stat-icon green"><i class="bi bi-arrow-down-circle-fill"></i></div>
+              <div>
+                <div class="stat-label">SK Total Income</div>
+                <div class="stat-value" id="sk-income">₱ 0</div>
+              </div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;">
+              <div class="stat-icon red"><i class="bi bi-arrow-up-circle-fill"></i></div>
+              <div>
+                <div class="stat-label">SK Total Expenses</div>
+                <div class="stat-value" id="sk-expenses">₱ 0</div>
+              </div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;">
+              <div class="stat-icon navy"><i class="bi bi-wallet2"></i></div>
+              <div>
+                <div class="stat-label">SK Net Balance</div>
+                <div class="stat-value" id="sk-balance">₱ 0</div>
+              </div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;">
+              <div class="stat-icon amber"><i class="bi bi-calendar-check"></i></div>
+              <div>
+                <div class="stat-label">Programs Funded</div>
+                <div class="stat-value" id="sk-programs">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">SK Income vs Expenses</div>
+            </div>
+            <div class="card-body"><canvas id="skChart" height="220"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Expense Categories</div>
+            </div>
+            <div class="card-body"><canvas id="skCatChart" height="220"></canvas></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Recent SK Income</div><a href="income.html" class="btn btn-xs btn-outline">View
+                All</a>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="sk-income-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Recent SK Expenses</div><a href="expenses.html"
+                class="btn btn-xs btn-outline">View All</a>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="sk-expense-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['sk_treasurer']);
+    (async () => {
+    if (user) {
+      await renderSidebar('dashboard');
+      await renderTopbar('SK Dashboard', 'Sangguniang Kabataan Financial Management');
+
+      const brgyId = user.barangayId;
+      const skIncome = await DB.filter('sk_income', { barangayId: brgyId });
+      const skExp = await DB.filter('sk_expenses', { barangayId: brgyId });
+      const totalInc = skIncome.filter(i => i.status !== 'rejected').reduce((s, i) => s + i.amount, 0);
+      const totalExp = skExp.filter(e => e.status !== 'rejected').reduce((s, e) => s + e.amount, 0);
+
+      document.getElementById('sk-income').textContent = formatCurrency(totalInc);
+      document.getElementById('sk-expenses').textContent = formatCurrency(totalExp);
+      document.getElementById('sk-balance').textContent = formatCurrency(totalInc - totalExp);
+      document.getElementById('sk-programs').textContent = skExp.length;
+
+      const iTbody = document.getElementById('sk-income-tbody');
+      const eTbody = document.getElementById('sk-expense-tbody');
+      iTbody.innerHTML = skIncome.slice(-4).reverse().map(i => `<tr>
+    <td style="font-size:.82rem;">${i.source.substring(0, 25)}</td>
+    <td style="color:#16a34a;font-weight:600;">${formatCurrency(i.amount)}</td>
+    <td>${formatDateShort(i.dateReceived)}</td>
+  </tr>`).join('') || '<tr><td colspan="3" class="table-empty">No records</td></tr>';
+
+      eTbody.innerHTML = skExp.slice(-4).reverse().map(e => `<tr>
+    <td style="font-size:.82rem;">${e.description.substring(0, 25)}</td>
+    <td style="color:#dc2626;font-weight:600;">${formatCurrency(e.amount)}</td>
+    <td>${formatDateShort(e.dateSpent)}</td>
+  </tr>`).join('') || '<tr><td colspan="3" class="table-empty">No records</td></tr>';
+
+      const hasSkData = skIncome.filter(i => i.status !== 'rejected').length > 0 || skExp.filter(e => e.status !== 'rejected').length > 0;
+
+      function showEmptyChart(canvasId, message) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const wrapper = canvas.parentElement;
+        const existing = wrapper.querySelector('.chart-empty-state');
+        canvas.style.display = 'none';
+        if (!existing) {
+          const empty = document.createElement('div');
+          empty.className = 'chart-empty-state';
+          empty.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;color:#64748b;text-align:center;padding:1rem;"><i class="bi bi-bar-chart" style="font-size:1.5rem;margin-bottom:0.5rem;"></i><div>${message}</div></div>`;
+          wrapper.appendChild(empty);
+        }
+      }
+
+      function hideEmptyChart(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const wrapper = canvas.parentElement;
+        wrapper.querySelector('.chart-empty-state')?.remove();
+        canvas.style.display = 'block';
+      }
+
+      if (hasSkData) {
+        hideEmptyChart('skChart');
+        const approvedIncome = skIncome.filter(i => i.status !== 'rejected');
+        const approvedExp = skExp.filter(e => e.status !== 'rejected');
+        const monthlyIncome = Array(6).fill(0);
+        const monthlyExpenses = Array(6).fill(0);
+        approvedIncome.forEach(item => {
+          const month = new Date(item.dateReceived).getMonth();
+          if (month >= 0 && month < 6) monthlyIncome[month] += item.amount;
+        });
+        approvedExp.forEach(item => {
+          const month = new Date(item.dateSpent).getMonth();
+          if (month >= 0 && month < 6) monthlyExpenses[month] += item.amount;
+        });
+
+        new Chart(document.getElementById('skChart'), {
+          type: 'bar',
+          data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [
+              { label: 'Income', data: monthlyIncome, backgroundColor: 'rgba(22,163,74,.7)', borderRadius: 6 },
+              { label: 'Expenses', data: monthlyExpenses, backgroundColor: 'rgba(26,58,107,.7)', borderRadius: 6 }
+            ]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        const catMap = {};
+        approvedExp.forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + e.amount; });
+        if (Object.keys(catMap).length) {
+          hideEmptyChart('skCatChart');
+          new Chart(document.getElementById('skCatChart'), {
+            type: 'doughnut',
+            data: { labels: Object.keys(catMap), datasets: [{ data: Object.values(catMap), backgroundColor: ['#1a3a6b', '#16a34a', '#0284c7', '#f59e0b'], borderWidth: 0 }] },
+            options: { responsive: true, plugins: { legend: { position: 'right' } }, cutout: '60%' }
+          });
+        } else {
+          showEmptyChart('skCatChart', 'No expense categories to display yet.');
+        }
+      } else {
+        showEmptyChart('skChart', 'No report data yet.');
+        showEmptyChart('skCatChart', 'No report data yet.');
+      }
+    }
+    })();
+  </script>
+</body>
+
+</html>

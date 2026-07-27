@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SK Income — BFMSS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css">
+  <link rel="stylesheet" href="../../assets/css/chatbot.css">
+  <link rel="stylesheet" href="../../assets/css/enhancements.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="main-content">
+      <header class="topbar" id="topbar"></header>
+      <main class="page-body">
+        <div class="page-header">
+          <div class="page-header-info">
+            <h2>SK Income Records</h2>
+            <p>Manage Sangguniang Kabataan income and fund receipts.</p>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" onclick="showModal('add-modal')"><i
+                class="bi bi-plus-lg"></i> New SK Income</button></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-search"><i class="bi bi-search"></i><input type="text" class="form-control" id="search"
+                placeholder="Search..." oninput="filter()"></div>
+            <button class="btn btn-light btn-sm" onclick="exportData()"><i class="bi bi-download"></i> Export</button>
+            <button class="btn btn-excel btn-sm" onclick="exportIncomeExcel(user.barangayId,'sk')"><i
+                class="bi bi-file-earmark-excel"></i> Excel</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Source</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal-box">
+      <div class="modal-header"><span class="modal-title">Add SK Income</span><button class="modal-close"
+          onclick="hideModal('add-modal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Source *</label><input type="text" id="f-source" class="form-control"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Category</label><select id="f-cat" class="form-control">
+              <option value="Government Allocation">Government Allocation</option>
+              <option value="Donations">Donations</option>
+              <option value="Fundraising">Fundraising</option>
+              <option value="Other">Other</option>
+            </select></div>
+          <div class="form-group"><label>Amount *</label><input type="number" id="f-amount" class="form-control"></div>
+        </div>
+        <div class="form-group"><label>Date Received *</label><input type="date" id="f-date" class="form-control"></div>
+        <div class="form-group"><label>Description</label><textarea id="f-desc" class="form-control"
+            rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" onclick="hideModal('add-modal')">Cancel</button>
+        <button class="btn btn-secondary" onclick="save()"><i class="bi bi-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+  <script src="../../assets/js/db.js"></script>
+  <script src="../../assets/js/utils.js"></script>
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/chatbot.js"></script>
+  <script src="../../assets/js/enhancements.js"></script>
+  <script>
+    const user = requireAuth(['sk_treasurer']);
+    let all = [];
+    (async () => {
+    if (user) { await renderSidebar('income'); await renderTopbar('SK Income', 'Manage SK income and fund receipts'); document.getElementById('f-date').value = today(); load(); }
+    })();
+    async function load() { all = await DB.filter('sk_income', { barangayId: user.barangayId }); render(all); }
+    function filter() { const q = document.getElementById('search').value.toLowerCase(); render(all.filter(i => !q || i.source.toLowerCase().includes(q))); }
+    function render(data) {
+      document.getElementById('tbody').innerHTML = data.length
+        ? data.map((i, idx) => `<tr><td>${idx + 1}</td><td style="font-weight:600;">${i.source}</td><td><span class="badge badge-primary">${i.category}</span></td><td style="color:#16a34a;font-weight:700;">${formatCurrency(i.amount)}</td><td>${formatDateShort(i.dateReceived)}</td><td><button class="btn-icon" style="color:#dc2626;" onclick="del(${i.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('')
+        : '<tr><td colspan="6" class="table-empty"><i class="bi bi-inbox"></i>No SK income records</td></tr>';
+    }
+    async function save() {
+      const src = document.getElementById('f-source').value.trim(), amt = parseFloat(document.getElementById('f-amount').value), dt = document.getElementById('f-date').value;
+      if (!src || !amt || !dt) { showToast('Fill required fields.', 'error'); return; }
+      await DB.insert('sk_income', { barangayId: user.barangayId, source: src, category: document.getElementById('f-cat').value, amount: amt, dateReceived: dt, description: document.getElementById('f-desc').value, userId: user.id, createdAt: nowISO() });
+      hideModal('add-modal'); showToast('SK income added!', 'success'); load();
+    }
+    function del(id) { confirmAction('Delete this SK income record?', async () => { await DB.delete('sk_income', id); showToast('Deleted.', 'warning'); load(); }); }
+    function exportData() { exportCSV(all.map(i => ({ Source: i.source, Amount: i.amount, Date: i.dateReceived })), 'BFMSS_SK_Income'); }
+  </script>
+</body>
+
+</html>
