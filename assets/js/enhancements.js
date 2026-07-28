@@ -118,7 +118,7 @@ const DashboardCharts = {
   _instances: {},
   _destroy(id) { if (this._instances[id]) { this._instances[id].destroy(); delete this._instances[id]; } },
 
-  monthly(canvasId, barangayId, module) {
+  async monthly(canvasId, barangayId, module) {
     if (!window.Chart || !document.getElementById(canvasId)) return;
     const ik = module === 'sk' ? 'sk_income' : 'income';
     const ek = module === 'sk' ? 'sk_expenses' : 'expenses';
