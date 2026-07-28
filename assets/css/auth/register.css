@@ -1,164 +1,364 @@
-/* ==========================================================
-   1. CSS Reset
-   ========================================================== */
-*, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+@import url('login.css');
 
-/* ==========================================================
-   2. Color Settings (Variables)
-   ========================================================== */
-:root {
-    --bg-main: #ffffff;
-    --bg-secondary: #f8fafc;
-    --text-main: #212529;
-    --text-muted: #64748b;
-    --card-bg: #ffffff;
+        /* STEP INDICATOR */
+        .step-indicator {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            background: #fff;
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active,
+        .step-dot.completed {
+            border-color: #1a56db;
+            background: #1a56db;
+            color: #fff;
+        }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: #e5e7eb;
+            transition: background 0.3s;
+            margin-top: 13px;
+        }
+
+        .step-line.active {
+            background: #1a56db;
+        }
+
+        .step-label {
+            font-size: 10px;
+            color: #9ca3af;
+            margin-top: 4px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .step-label.active {
+            color: #1a56db;
+        }
+
+        /* ROLE CARDS */
+        .role-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 1.25rem;
+        }
+
+        .role-card {
+            border: 1.5px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 0.85rem 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            background: #fff;
+            position: relative;
+        }
+
+        .role-card:hover {
+            border-color: #1a56db;
+            background: #f0f5ff;
+        }
+
+        .role-card.selected {
+            border-color: #1a56db;
+            background: #eef3ff;
+            box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+        }
+
+        .role-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+
+        .role-icon.admin {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .role-icon.treasurer {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .role-icon.sk {
+            background: #fdf4ff;
+            color: #7e22ce;
+        }
+
+        .role-info h6 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 2px;
+        }
+
+        .role-info p {
+            font-size: 11px;
+            color: #6b7280;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .role-check {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: transparent;
+            transition: all 0.2s;
+        }
+
+        .role-card.selected .role-check {
+            border-color: #1a56db;
+            background: #1a56db;
+            color: #fff;
+        }
+
+        /* FORM INPUTS */
+        .form-input {
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #111827;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #f9fafb;
+        }
+
+        .form-input:focus {
+            border-color: #1a56db;
+            box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+            background: #fff;
+            outline: none;
+        }
+
+        .form-input::placeholder {
+            color: #9ca3af;
+        }
+
+        select.form-input {
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '\F282';
+            font-family: 'Bootstrap-icons';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            pointer-events: none;
+            font-size: 14px;
+        }
+
+        /* LOCATION INFO BADGE */
+        .loc-info-box {
+            display: none;
+            background: #f0f5ff;
+            border: 1.5px solid #dbeafe;
+            border-radius: 10px;
+            padding: 0.55rem 1rem;
+            font-size: 12px;
+            color: #1d4ed8;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 0.6rem;
+        }
+
+        .loc-info-box.show {
+            display: flex;
+        }
+
+        /* SELECTED ROLE BADGE */
+        .selected-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .badge-admin {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .badge-treasurer {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .badge-sk {
+            background: #fdf4ff;
+            color: #7e22ce;
+        }
+
+        /* EYE TOGGLE */
+        .eye-toggle-btn {
+            cursor: pointer;
+            user-select: none;
+            font-size: 1rem;
+            color: #9ca3af;
+            transition: color 0.2s;
+        }
+
+        .eye-toggle-btn:hover {
+            color: #374151;
+        }
+
+        /* BUTTONS */
+        .btn-submit {
+            background: #1a56db;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            padding: 0.75rem;
+            transition: background 0.2s, transform 0.1s;
+            cursor: pointer;
+        }
+
+        .btn-submit:hover {
+            background: #1648c0;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.99);
+        }
+
+        .btn-submit:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            padding: 0.65rem 1.25rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-back:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        /* STEP PANELS */
+        .step-panel {
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .step-panel.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideBack {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .step-panel.going-back {
+            animation: slideBack 0.3s ease;
+        }
+
+        /* MISC */
+        .form-check-input:checked {
+            background-color: #1a56db;
+            border-color: #1a56db;
+        }
+
+        .form-check-input:focus {
+            box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.15);
+        }
+
+        .barangay-field {
+            display: none;
+        }
+
+        .barangay-field.visible {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .login-form-area {
+                padding: 1.5rem;
+            }
+        }
     
-    --input-bg: #f8fafc;
-    --input-border: #cbd5e1;
-
-    --primary-color: #1e3a8a; 
-    --accent-color: #2563eb;
-}
-
-/* If you ever decide to let the auth pages use dark mode later, 
-   these variables will automatically kick in. */
-[data-theme="dark"] {
-    --bg-main: #0f172a;
-    --bg-secondary: #1e293b;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --card-bg: #1e293b;
-    
-    --input-bg: #334155;
-    --input-border: #475569;
-
-    --primary-color: #60a5fa; 
-    --accent-color: #3b82f6;
-}
-
-/* ==========================================================
-   3. Base Rules
-   ========================================================== */
-.login-page-body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    overflow-x: hidden;
-}
-
-.text-dark { color: var(--text-main) !important; }
-.text-muted { color: var(--text-muted) !important; }
-.text-primary { color: var(--primary-color) !important; }
-
-/* ==========================================================
-   4. Diagonal Background Layout
-   ========================================================== */
-.login-diagonal-bg {
-    /* Creates the diagonal split: Light gray on left, white gap in middle, blue on right */
-    background: linear-gradient(105deg, 
-        var(--bg-secondary) 47%, 
-        #ffffff 47%, 
-        #ffffff 51%, 
-        var(--primary-color) 51%
-    );
-}
-
-/* ==========================================================
-   5. Card and Container Styling
-   ========================================================== */
-.login-main-card {
-    min-height: 600px;
-    border-radius: 20px !important;
-    background-color: var(--card-bg);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
-}
-
-.login-form-area {
-    background-color: var(--card-bg);
-}
-
-.brand-icon-box {
-    width: 36px;
-    height: 36px;
-}
-
-/* ==========================================================
-   6. Input Fields
-   ========================================================== */
-.form-input {
-    background-color: var(--input-bg);
-    border: 1px solid var(--input-border);
-    color: var(--text-main);
-    border-radius: 8px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.form-input:focus {
-    background-color: var(--input-bg);
-    color: var(--text-main);
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
-    outline: none;
-}
-
-/* Eye Toggle Button (For Passwords) */
-.eye-toggle-btn {
-    cursor: pointer;
-    z-index: 10;
-    transition: color 0.3s ease;
-}
-
-.eye-toggle-btn:hover {
-    color: var(--accent-color) !important;
-}
-
-/* ==========================================================
-   7. Buttons & Links
-   ========================================================== */
-.btn-submit {
-    background-color: var(--accent-color);
-    border: none;
-}
-
-.btn-submit:hover {
-    background-color: var(--primary-color);
-}
-
-.custom-btn-effect { 
-    transition: transform 0.2s ease, box-shadow 0.2s ease; 
-}
-
-.custom-btn-effect:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);
-}
-
-/* Hover effect for bottom links (Login/Register/Forgot Pass) */
-.custom-hover-text {
-    transition: color 0.3s ease;
-}
-
-.custom-hover-text:hover {
-    color: var(--primary-color) !important;
-}
-
-/* ==========================================================
-   8. Right Side Image Overlay
-   ========================================================== */
-.login-side-image {
-    object-position: center;
-}
-
-.image-dark-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Dims the image slightly to make it look premium and blend better */
-    background-color: rgba(0, 0, 0, 0.3); 
-}
