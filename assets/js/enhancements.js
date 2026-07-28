@@ -124,10 +124,12 @@ const DashboardCharts = {
     const ek = module === 'sk' ? 'sk_expenses' : 'expenses';
     const yr = new Date().getFullYear();
     const inc = Array(12).fill(0), exp = Array(12).fill(0);
-    DB.filter(ik, i => i.barangayId===barangayId && i.status==='approved' && i.dateReceived?.startsWith(String(yr)))
-      .forEach(i => { const m = +i.dateReceived.split('-')[1]-1; inc[m] += i.amount; });
-    DB.filter(ek, e => e.barangayId===barangayId && e.status==='approved' && e.dateSpent?.startsWith(String(yr)))
-      .forEach(e => { const m = +e.dateSpent.split('-')[1]-1; exp[m] += e.amount; });
+    const allInc = await DB.filter(ik, { barangayId });
+    allInc.filter(i => i.status==='approved' && i.dateReceived?.startsWith(String(yr)))
+      .forEach(i => { const m = +i.dateReceived.split('-')[1]-1; inc[m] += parseFloat(i.amount || 0); });
+    const allExp = await DB.filter(ek, { barangayId });
+    allExp.filter(e => e.status==='approved' && e.dateSpent?.startsWith(String(yr)))
+      .forEach(e => { const m = +e.dateSpent.split('-')[1]-1; exp[m] += parseFloat(e.amount || 0); });
     this._destroy(canvasId);
     this._instances[canvasId] = new Chart(document.getElementById(canvasId), {
       type: 'bar',
@@ -142,10 +144,11 @@ const DashboardCharts = {
     });
   },
 
-  donut(canvasId, barangayId, module, type) {
+  async donut(canvasId, barangayId, module, type) {
     if (!window.Chart || !document.getElementById(canvasId)) return;
     const key = type==='income' ? (module==='sk'?'sk_income':'income') : (module==='sk'?'sk_expenses':'expenses');
-    const records = DB.filter(key, r => r.barangayId===barangayId && r.status==='approved');
+    const allRec = await DB.filter(key, { barangayId });
+    const records = allRec.filter(r => r.status==='approved');
     const bycat = {};
     records.forEach(r => { bycat[r.category] = (bycat[r.category]||0) + r.amount; });
     const labels = Object.keys(bycat), data = Object.values(bycat);
@@ -160,12 +163,14 @@ const DashboardCharts = {
     });
   },
 
-  trend(canvasId, barangayId, module) {
+  async trend(canvasId, barangayId, module) {
     if (!window.Chart || !document.getElementById(canvasId)) return;
     const ik = module==='sk'?'sk_income':'income', ek = module==='sk'?'sk_expenses':'expenses';
+    const allIk = await DB.filter(ik, { barangayId });
+    const allEk = await DB.filter(ek, { barangayId });
     const evts = [
-      ...DB.filter(ik, i=>i.barangayId===barangayId&&i.status==='approved').map(i=>({date:i.dateReceived, amt:i.amount})),
-      ...DB.filter(ek, e=>e.barangayId===barangayId&&e.status==='approved').map(e=>({date:e.dateSpent, amt:-e.amount})),
+      ...allIk.filter(i=>i.status==='approved').map(i=>({date:i.dateReceived, amt:parseFloat(i.amount||0)})),
+      ...allEk.filter(e=>e.status==='approved').map(e=>({date:e.dateSpent, amt:-parseFloat(e.amount||0)})),
     ].sort((a,b)=>a.date.localeCompare(b.date));
     let running=0;
     const labels=[], values=[];
@@ -331,10 +336,11 @@ function exportExcel(data, filename, sheetName) {
     showToast('Excel file downloaded!','success');
   });
 }
-function exportIncomeExcel(barangayId, module) {
+async function exportIncomeExcel(barangayId, module) {
   const key = module==='sk'?'sk_income':'income';
+  const data = await DB.filter(key, { barangayId });
   exportExcel(
-    DB.filter(key, i=>i.barangayId===barangayId).map(i=>({
+    data.map(i=>({
       'Source':i.source,'Category':i.category,'Amount (₱)':i.amount,
       'Date Received':i.dateReceived,'Description':i.description||'','Status':i.status
     })),
@@ -342,10 +348,11 @@ function exportIncomeExcel(barangayId, module) {
     'Income'
   );
 }
-function exportExpensesExcel(barangayId, module) {
+async function exportExpensesExcel(barangayId, module) {
   const key = module==='sk'?'sk_expenses':'expenses';
+  const data = await DB.filter(key, { barangayId });
   exportExcel(
-    DB.filter(key, e=>e.barangayId===barangayId).map(e=>({
+    data.map(e=>({
       'Description':e.description,'Category':e.category,'Amount (₱)':e.amount,
       'Date Spent':e.dateSpent,'Status':e.status
     })),
@@ -404,13 +411,15 @@ async function renderFinancialHealthGauge(containerId, barangayId, module) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const ik = module==='sk'?'sk_income':'income', ek = module==='sk'?'sk_expenses':'expenses';
-  const income   = DB.filter(ik, i=>i.barangayId===barangayId&&i.status==='approved');
-  const expenses = DB.filter(ek, e=>e.barangayId===barangayId&&e.status==='approved');
-  const totalInc = income.reduce((s,i)=>s+i.amount,0);
-  const totalExp = expenses.reduce((s,e)=>s+e.amount,0);
+  const allIk = await DB.filter(ik, { barangayId });
+  const allEk = await DB.filter(ek, { barangayId });
+  const income   = allIk.filter(i=>i.status==='approved');
+  const expenses = allEk.filter(e=>e.status==='approved');
+  const totalInc = income.reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const totalExp = expenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
   const balance  = totalInc - totalExp;
-  const pendInc  = DB.filter(ik, i=>i.barangayId===barangayId&&i.status==='pending').reduce((s,i)=>s+i.amount,0);
-  const pendExp  = DB.filter(ek, e=>e.barangayId===barangayId&&e.status==='pending').reduce((s,e)=>s+e.amount,0);
+  const pendInc  = allIk.filter(i=>i.status==='pending').reduce((s,i)=>s+parseFloat(i.amount||0),0);
+  const pendExp  = allEk.filter(e=>e.status==='pending').reduce((s,e)=>s+parseFloat(e.amount||0),0);
 
   let util = 0;
   if (module !== 'sk') {

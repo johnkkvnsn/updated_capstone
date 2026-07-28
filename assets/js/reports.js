@@ -726,7 +726,8 @@ async function generateFundStatusPDF(doc, fd, brgy, y, module = 'treasurer') {
     { cat: 'Social Services & Development', pct: 0.10 },
   ];
   const { expenseKey } = getModuleTables(module);
-  const expenses = DB.filter(expenseKey, e => e.barangayId === brgy.id && e.status !== 'rejected');
+  const allExp = await DB.filter(expenseKey, { barangayId: brgy.id });
+  const expenses = allExp.filter(e => e.status !== 'rejected');
   const expByCat = {};
   expenses.forEach(e => { expByCat[e.category] = (expByCat[e.category] || 0) + e.amount; });
 
