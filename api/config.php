@@ -1,4 +1,5 @@
 <?php
+ini_set('display_errors', 0);
 // api/config.php
 session_set_cookie_params([
     'lifetime' => 86400,
