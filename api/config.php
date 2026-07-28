@@ -10,10 +10,10 @@ session_set_cookie_params([
 ]);
 session_start();
 
-$host = 'localhost';
-$db   = 'bfmss_db';
-$user = 'root';
-$pass = '';
+$host = getenv('DB_HOST') ?: 'localhost';
+$db   = getenv('DB_NAME') ?: 'bfmss_db';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') ?: '';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
