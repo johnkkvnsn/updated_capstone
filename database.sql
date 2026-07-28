@@ -1,9 +1,7 @@
 -- BFMSS Database Schema and Seed Data
 -- Database: bfmss_db
 
-CREATE DATABASE IF NOT EXISTS bfmss_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE bfmss_db;
-
+-- Removed CREATE DATABASE for cloud compatibility
 -- 1. Roles Table
 CREATE TABLE IF NOT EXISTS roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
