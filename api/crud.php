@@ -22,6 +22,58 @@ if (!in_array($table, $allowedTables)) {
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input'), true);
 
+$roleId = (int)($user['roleId'] ?? 4);
+$barangayId = $user['barangayId'] ?? null;
+
+// Apply Role-Based Access Control for non-admins (Role 3 = Treasurer, 4 = SK)
+if ($roleId >= 3) {
+    if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
+        // Force barangayId on input for POST/PUT to prevent metadata forgery
+        if (in_array($method, ['POST', 'PUT']) && is_array($input)) {
+            $input['barangayId'] = $barangayId;
+        }
+        
+        // Block modification of restricted tables
+        $restrictedModTables = ['roles', 'barangays', 'users', 'system_config'];
+        if (in_array($table, $restrictedModTables)) {
+            // Exception: allow them to update their own user profile
+            if (!($table === 'users' && $method === 'PUT' && isset($_GET['id']) && $_GET['id'] == $user['id'])) {
+                sendJsonResponse(['status' => 'error', 'message' => 'Forbidden modification'], 403);
+            }
+        }
+        
+        // For PUT/DELETE, verify the record belongs to their barangay or themselves
+        if (in_array($method, ['PUT', 'DELETE']) && isset($_GET['id'])) {
+            $stmtCheck = $pdo->prepare("SELECT * FROM `$table` WHERE id = ?");
+            $stmtCheck->execute([$_GET['id']]);
+            $record = $stmtCheck->fetch();
+            if ($record) {
+                if (isset($record['barangayId']) && $record['barangayId'] != $barangayId) {
+                    sendJsonResponse(['status' => 'error', 'message' => 'Forbidden access to cross-barangay data'], 403);
+                }
+                if ($table === 'users' && $record['id'] != $user['id']) {
+                    sendJsonResponse(['status' => 'error', 'message' => 'Forbidden access to other users'], 403);
+                }
+            }
+        }
+    }
+    
+    if ($method === 'GET') {
+        // Scope GET queries to their own barangay
+        $barangayTables = ['budgets', 'income', 'expenses', 'sk_income', 'sk_expenses', 'reports'];
+        if (in_array($table, $barangayTables)) {
+            $_GET['barangayId'] = $barangayId;
+        }
+        // Scope personal tables
+        if ($table === 'users') {
+            $_GET['id'] = $user['id'];
+        }
+        if (in_array($table, ['audit_logs', 'notifications'])) {
+            $_GET['userId'] = $user['id'];
+        }
+    }
+}
+
 try {
     switch ($method) {
         case 'GET':

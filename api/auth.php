@@ -69,6 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
     $roleId = intval($input['roleId'] ?? 4);
+    // Security: Prevent Privilege Escalation (Mass Assignment)
+    if ($roleId < 3) {
+        $roleId = 4; // Force non-admin role
+    }
     $municipality = trim($input['municipality'] ?? '');
     $barangayId = $input['barangayId'] ?? null;
 

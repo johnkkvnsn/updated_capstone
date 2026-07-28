@@ -29,8 +29,8 @@ const BFMSS_CHATBOT = {
       const expenseKey = isSK ? 'sk_expenses' : 'expenses';
       const income = await DB.filter(incomeKey, { barangayId: user.barangayId });
       const expenses = await DB.filter(expenseKey, { barangayId: user.barangayId });
-      const totalIncome = income.filter(i => i.status === 'approved').reduce((s, i) => s + i.amount, 0);
-      const totalExpenses = expenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amount, 0);
+      const totalIncome = income.filter(i => i.status === 'approved').reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+      const totalExpenses = expenses.filter(e => e.status === 'approved').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
       lines.push(`Module: ${isSK ? 'Sangguniang Kabataan (SK) Funds' : 'Barangay General Fund'}`);
       lines.push(`Total Approved Income (all-time): ₱${totalIncome.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);

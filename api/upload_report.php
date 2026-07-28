@@ -24,6 +24,12 @@ if (!$metadata) {
     sendJsonResponse(['status' => 'error', 'message' => 'Invalid metadata'], 400);
 }
 
+// Security: Prevent Metadata Forgery for non-admins
+$roleId = (int)($user['roleId'] ?? 4);
+if ($roleId >= 3) {
+    $metadata['barangayId'] = $user['barangayId'];
+}
+
 // Generate unique filename
 $uploadDir = '../uploads/reports/';
 if (!is_dir($uploadDir)) {

@@ -254,8 +254,8 @@ const NotifSystem = {
       <div class="notif-item ${n.read?'':'notif-unread'}" onclick="markNotifRead(${n.id})">
         <div class="notif-icon notif-icon-${n.type||'info'}"><i class="bi ${icons[n.type||'info']}"></i></div>
         <div class="notif-content">
-          <div class="notif-title">${n.title||''}</div>
-          <div class="notif-msg">${n.message}</div>
+          <div class="notif-title">${escHtml(n.title||'')}</div>
+          <div class="notif-msg">${escHtml(n.message)}</div>
           <div class="notif-time">${formatDateTime(n.createdAt)}</div>
         </div>
         ${!n.read ? '<div class="notif-dot"></div>' : ''}

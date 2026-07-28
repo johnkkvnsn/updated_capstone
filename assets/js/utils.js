@@ -2,6 +2,14 @@
  * BFMSS Utility Functions
  */
 
+// ─── SECURITY ────────────────────────────────────────────
+window.escHtml = function(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+};
+
 // ─── FORMAT ──────────────────────────────────────────────
 function formatCurrency(amount) {
   return '₱ ' + Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -75,6 +83,21 @@ function requireAuth(allowedRoles) {
     redirectByRole(user.roleId);
     return null;
   }
+  
+  // Background Server-Side Verification
+  fetch(getRoot() + 'api/auth.php?action=check', { credentials: 'include' })
+    .then(res => res.json())
+    .then(json => {
+      if (json.status !== 'success' || (allowedRoles && !allowedRoles.includes(DB.getRoleName(json.user.roleId)))) {
+        // Tampered session or unauthorized
+        sessionStorage.removeItem('bfmss_current_user');
+        window.location.href = getRoot() + 'pages/auth/login.html';
+      } else {
+        // Sync any updates from server to local storage
+        DB.setCurrentUser(json.user);
+      }
+    }).catch(console.error);
+
   return user;
 }
 function getRoot() {

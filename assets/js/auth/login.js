@@ -27,13 +27,17 @@ function showLoginError(message) {
     const alertBox = document.getElementById('loginAlert');
     if (alertBox) {
         alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
         alertBox.style.display = 'block';
     }
 }
 
 function hideLoginError() {
     const alertBox = document.getElementById('loginAlert');
-    if (alertBox) alertBox.style.display = 'none';
+    if (alertBox) {
+        alertBox.classList.add('d-none');
+        alertBox.style.display = 'none';
+    }
 }
 
 function getRedirectUrl(roleId) {
@@ -58,19 +62,15 @@ async function processLoginSubmission(eventDetails) {
         return;
     }
 
-    const user = await DB.validateLogin(email, password);
+    const response = await DB.validateLogin(email, password);
 
-    if (!user) {
-        // Log failed attempt
-        await DB.log(0, 'LOGIN_FAILED', `Failed login attempt for ${email}`, 'Authentication');
-        showLoginError('Invalid email or password. Please try again.');
+    if (!response || response.status !== 'success') {
+        const errorMsg = response && response.message ? response.message : 'Invalid email or password. Please try again.';
+        showLoginError(errorMsg);
         return;
     }
 
-    // Save session
-    DB.setCurrentUser(user);
-    await DB.log(user.id, 'LOGIN', `${user.fullName} logged in`, 'Authentication');
-
+    const user = response.user;
     // Redirect based on role
     window.location.href = getRedirectUrl(user.roleId);
 }
