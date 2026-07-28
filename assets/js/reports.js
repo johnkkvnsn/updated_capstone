@@ -6,7 +6,7 @@
 // Load jsPDF dynamically (Offline Capable)
 function loadJsPDF(callback) {
   if (window.jspdf) { callback(); return; }
-  const src = '/updated_capstone/assets/js/vendor/jspdf.umd.min.js';
+  const src = `${BASE_URL}/assets/js/vendor/jspdf.umd.min.js`;
   const s = document.createElement('script');
   s.src = src;
   s.onload = () => { window.jspdf = window.jspdf || {}; callback(); };
@@ -16,7 +16,7 @@ function loadJsPDF(callback) {
 function loadJSZip(callback) {
   if (window.JSZip) { callback(); return; }
   const s = document.createElement('script');
-  s.src = '/updated_capstone/assets/js/vendor/jszip.min.js';
+  s.src = `${BASE_URL}/assets/js/vendor/jszip.min.js`;
   s.onload = callback;
   document.head.appendChild(s);
 }

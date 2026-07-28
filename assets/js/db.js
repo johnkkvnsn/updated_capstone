@@ -2,14 +2,16 @@
  * BFMSS - Barangay Financial Management Streamlining System
  * Database Layer using PHP/MySQL REST API
  */
-const API_BASE = '/updated_capstone/api';
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const BASE_URL = IS_LOCAL ? '/updated_capstone' : '';
+const API_BASE = `${BASE_URL}/api`;
 
 const DB = {
   // ─── CRUD ────────────────────────────────────────────────
   async get(table, params = {}) {
     const q = new URLSearchParams({ table, ...params }).toString();
     const res = await fetch(`${API_BASE}/crud.php?${q}`, { credentials: 'include' });
-    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = '/updated_capstone/pages/auth/login.html'; return []; }
+    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = `${BASE_URL}/pages/auth/login.html`; return []; }
     const json = await res.json();
     if (json.status === 'error') console.error('DB GET Error:', json.message);
     return json.data || [];
@@ -22,7 +24,7 @@ const DB = {
       credentials: 'include',
       body: JSON.stringify(record)
     });
-    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = '/updated_capstone/pages/auth/login.html'; return null; }
+    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = `${BASE_URL}/pages/auth/login.html`; return null; }
     const json = await res.json();
     if (json.status === 'error') console.error('DB POST Error:', json.message);
     return json.data;
@@ -35,14 +37,14 @@ const DB = {
       credentials: 'include',
       body: JSON.stringify(updates)
     });
-    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = '/updated_capstone/pages/auth/login.html'; return null; }
+    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = `${BASE_URL}/pages/auth/login.html`; return null; }
     const json = await res.json();
     return json.data;
   },
   
   async delete(table, id) {
     const res = await fetch(`${API_BASE}/crud.php?table=${table}&id=${id}`, { method: 'DELETE', credentials: 'include' });
-    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = '/updated_capstone/pages/auth/login.html'; return; }
+    if (res.status === 401 || res.status === 403) { sessionStorage.removeItem('bfmss_current_user'); window.location.href = `${BASE_URL}/pages/auth/login.html`; return; }
   },
 
   async filter(table, queryObj = {}) {
