@@ -1097,7 +1097,7 @@
       };
       formDataUpload.append('metadata', JSON.stringify(metadata));
 
-      const res = await fetch(`${API_BASE}/upload_report.php`, {
+      const res = await fetch('/updated_capstone/api/upload_report.php', {
         method: 'POST',
         body: formDataUpload
       });
