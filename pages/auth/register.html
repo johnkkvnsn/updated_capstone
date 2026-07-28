@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="../../assets/css/auth/register.css">
+    <link rel="stylesheet" href="../../assets/css/auth/register.css">
 </head>
 
 <body class="login-page-body">
@@ -31,307 +31,349 @@
                         <div class="row g-0 h-100 align-items-stretch">
                             <div class="col-lg-6 d-flex flex-column justify-content-center p-4 p-md-5 login-form-area">
 
-                    <header class="d-flex align-items-center mb-4">
-                                        <figure
-                                            class="brand-icon-box bg-primary text-white rounded d-flex align-items-center justify-content-center me-2 mb-0">
-                                            <i class="bi bi-bank"></i>
-                                        </figure>
-                                        <h4 class="mb-0 fw-bold text-dark-custom">BFMSS</h4>
-                                    </header>
+                                <header class="d-flex align-items-center mb-4">
+                                    <figure
+                                        class="brand-icon-box bg-primary text-white rounded d-flex align-items-center justify-content-center me-2 mb-0">
+                                        <i class="bi bi-bank"></i>
+                                    </figure>
+                                    <h4 class="mb-0 fw-bold text-dark-custom">BFMSS</h4>
+                                </header>
 
-                    <!-- Step Indicator -->
-                    <div style="margin-bottom:1.25rem;">
-                        <div class="step-indicator">
-                            <div class="step-wrapper">
-                                <div class="step-dot active" id="dot1">1</div>
-                                <div class="step-label active" id="lbl1">Role</div>
-                            </div>
-                            <div class="step-line" id="line1"></div>
-                            <div class="step-wrapper">
-                                <div class="step-dot" id="dot2">2</div>
-                                <div class="step-label" id="lbl2">Details</div>
-                            </div>
-                            <div class="step-line" id="line2"></div>
-                            <div class="step-wrapper">
-                                <div class="step-dot" id="dot3">3</div>
-                                <div class="step-label" id="lbl3">Terms</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ===== STEP 1: ROLE SELECTION ===== -->
-                    <div class="step-panel active" id="step1">
-                        <h3 class="fw-bold text-dark-custom mb-1">Choose your role.</h3>
-                        <p class="text-muted-custom small mb-3">Select the role that matches your position in the system.</p>
-                        <div class="role-grid">
-                            <div class="role-card" data-role="super_admin" onclick="selectRole(this)">
-                                <div class="role-icon admin"><i class="bi bi-shield-lock-fill"></i></div>
-                                <div class="role-info">
-                                    <h6>Super Admin</h6>
-                                    <p>Full system access — manage barangays, users, reports, and configurations.</p>
-                                </div>
-                                <div class="role-check"><i class="bi bi-check"></i></div>
-                            </div>
-                            <div class="role-card" data-role="barangay_treasurer" onclick="selectRole(this)">
-                                <div class="role-icon treasurer"><i class="bi bi-cash-coin"></i></div>
-                                <div class="role-info">
-                                    <h6>Barangay Treasurer</h6>
-                                    <p>Manage barangay funds, submit reports, and request budget approvals.</p>
-                                </div>
-                                <div class="role-check"><i class="bi bi-check"></i></div>
-                            </div>
-                            <div class="role-card" data-role="sk" onclick="selectRole(this)">
-                                <div class="role-icon sk"><i class="bi bi-people-fill"></i></div>
-                                <div class="role-info">
-                                    <h6>SK (Sangguniang Kabataan)</h6>
-                                    <p>Manage SK budget allocations, youth programs, and related expenditures.</p>
-                                </div>
-                                <div class="role-check"><i class="bi bi-check"></i></div>
-                            </div>
-                        </div>
-                        <button class="btn btn-submit w-100" id="proceedBtn" onclick="goToStep2()" disabled>
-                            Continue <i class="bi bi-arrow-right ms-1"></i>
-                        </button>
-                        <div class="text-center mt-3">
-                            <span class="text-muted-custom small">Already have an account? </span>
-                            <a href="login.html" class="text-primary text-decoration-none small fw-semibold">Login
-                                here.</a>
-                        </div>
-                    </div>
-
-                    <!-- ===== STEP 2: REGISTRATION FORM ===== -->
-                    <div class="step-panel" id="step2">
-                        <h3 class="fw-bold text-dark-custom mb-1">Create an account.</h3>
-                        <p class="text-muted-custom small mb-2">Enter your details to get started with the system.</p>
-                        <div id="roleBadge" class="selected-role-badge"></div>
-
-                        <form id="registerForm" action="#" method="post" novalidate>
-                            <div class="mb-2">
-                                <input type="text" class="form-control form-input p-3" id="registerName"
-                                    placeholder="Full Name" required>
-                            </div>
-                            <div class="mb-2">
-                                <input type="email" class="form-control form-input p-3" id="registerEmail"
-                                    placeholder="Email Address" required>
-                            </div>
-
-                            <!-- Super Admin: Municipality only -->
-                            <div class="barangay-field" id="adminLocationFields">
-                                <div class="mb-2">
-                                    <div class="select-wrapper">
-                                        <select class="form-control form-input p-3" id="adminMunicipalitySelect"
-                                            onchange="showAdminLocationInfo()">
-                                            <option value="" disabled selected>Select City / Municipality — Laguna
-                                            </option>
-                                            <option value="Alaminos">Alaminos</option>
-                                            <option value="Bay">Bay</option>
-                                            <option value="Biñan">Biñan (City)</option>
-                                            <option value="Cabuyao">Cabuyao (City)</option>
-                                            <option value="Calamba">Calamba (City)</option>
-                                            <option value="Calauan">Calauan</option>
-                                            <option value="Cavinti">Cavinti</option>
-                                            <option value="Famy">Famy</option>
-                                            <option value="Kalayaan">Kalayaan</option>
-                                            <option value="Liliw">Liliw</option>
-                                            <option value="Los Baños">Los Baños</option>
-                                            <option value="Luisiana">Luisiana</option>
-                                            <option value="Lumban">Lumban</option>
-                                            <option value="Mabitac">Mabitac</option>
-                                            <option value="Magdalena">Magdalena</option>
-                                            <option value="Majayjay">Majayjay</option>
-                                            <option value="Nagcarlan">Nagcarlan</option>
-                                            <option value="Paete">Paete</option>
-                                            <option value="Pagsanjan">Pagsanjan</option>
-                                            <option value="Pakil">Pakil</option>
-                                            <option value="Pangil">Pangil</option>
-                                            <option value="Pila">Pila</option>
-                                            <option value="Rizal">Rizal</option>
-                                            <option value="San Pablo">San Pablo (City)</option>
-                                            <option value="San Pedro">San Pedro (City)</option>
-                                            <option value="Santa Cruz">Santa Cruz</option>
-                                            <option value="Santa Maria">Santa Maria</option>
-                                            <option value="Santa Rosa">Santa Rosa (City)</option>
-                                            <option value="Siniloan">Siniloan</option>
-                                            <option value="Victoria">Victoria</option>
-                                        </select>
+                                <!-- Step Indicator -->
+                                <div style="margin-bottom:1.25rem;">
+                                    <div class="step-indicator">
+                                        <div class="step-wrapper">
+                                            <div class="step-dot active" id="dot1">1</div>
+                                            <div class="step-label active" id="lbl1">Role</div>
+                                        </div>
+                                        <div class="step-line" id="line1"></div>
+                                        <div class="step-wrapper">
+                                            <div class="step-dot" id="dot2">2</div>
+                                            <div class="step-label" id="lbl2">Details</div>
+                                        </div>
+                                        <div class="step-line" id="line2"></div>
+                                        <div class="step-wrapper">
+                                            <div class="step-dot" id="dot3">3</div>
+                                            <div class="step-label" id="lbl3">Terms</div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="loc-info-box" id="adminLocInfoBox">
-                                    <i class="bi bi-geo-alt-fill"></i>
-                                    <span id="adminLocInfoText"></span>
-                                </div>
-                            </div>
 
-                            <!-- Treasurer / SK: Municipality + Barangay -->
-                            <div class="barangay-field" id="locationFields">
-                                <div class="mb-2">
-                                    <div class="select-wrapper">
-                                        <select class="form-control form-input p-3" id="municipalitySelect"
-                                            onchange="updateBarangays()">
-                                            <option value="" disabled selected>Select City / Municipality</option>
-                                            <option value="Alaminos">Alaminos</option>
-                                            <option value="Bay">Bay</option>
-                                            <option value="Biñan">Biñan (City)</option>
-                                            <option value="Cabuyao">Cabuyao (City)</option>
-                                            <option value="Calamba">Calamba (City)</option>
-                                            <option value="Calauan">Calauan</option>
-                                            <option value="Cavinti">Cavinti</option>
-                                            <option value="Famy">Famy</option>
-                                            <option value="Kalayaan">Kalayaan</option>
-                                            <option value="Liliw">Liliw</option>
-                                            <option value="Los Baños">Los Baños</option>
-                                            <option value="Luisiana">Luisiana</option>
-                                            <option value="Lumban">Lumban</option>
-                                            <option value="Mabitac">Mabitac</option>
-                                            <option value="Magdalena">Magdalena</option>
-                                            <option value="Majayjay">Majayjay</option>
-                                            <option value="Nagcarlan">Nagcarlan</option>
-                                            <option value="Paete">Paete</option>
-                                            <option value="Pagsanjan">Pagsanjan</option>
-                                            <option value="Pakil">Pakil</option>
-                                            <option value="Pangil">Pangil</option>
-                                            <option value="Pila">Pila</option>
-                                            <option value="Rizal">Rizal</option>
-                                            <option value="San Pablo">San Pablo (City)</option>
-                                            <option value="San Pedro">San Pedro (City)</option>
-                                            <option value="Santa Cruz">Santa Cruz</option>
-                                            <option value="Santa Maria">Santa Maria</option>
-                                            <option value="Santa Rosa">Santa Rosa (City)</option>
-                                            <option value="Siniloan">Siniloan</option>
-                                            <option value="Victoria">Victoria</option>
-                                        </select>
+                                <!-- ===== STEP 1: ROLE SELECTION ===== -->
+                                <div class="step-panel active" id="step1">
+                                    <h3 class="fw-bold text-dark-custom mb-1">Choose your role.</h3>
+                                    <p class="text-muted-custom small mb-3">Select the role that matches your position
+                                        in the system.</p>
+                                    <div class="role-grid">
+                                        <div class="role-card" data-role="super_admin" onclick="selectRole(this)">
+                                            <div class="role-icon admin"><i class="bi bi-shield-lock-fill"></i></div>
+                                            <div class="role-info">
+                                                <h6>Super Admin</h6>
+                                                <p>Full system access — manage barangays, users, reports, and
+                                                    configurations.</p>
+                                            </div>
+                                            <div class="role-check"><i class="bi bi-check"></i></div>
+                                        </div>
+                                        <div class="role-card" data-role="barangay_treasurer"
+                                            onclick="selectRole(this)">
+                                            <div class="role-icon treasurer"><i class="bi bi-cash-coin"></i></div>
+                                            <div class="role-info">
+                                                <h6>Barangay Treasurer</h6>
+                                                <p>Manage barangay funds, submit reports, and request budget approvals.
+                                                </p>
+                                            </div>
+                                            <div class="role-check"><i class="bi bi-check"></i></div>
+                                        </div>
+                                        <div class="role-card" data-role="sk" onclick="selectRole(this)">
+                                            <div class="role-icon sk"><i class="bi bi-people-fill"></i></div>
+                                            <div class="role-info">
+                                                <h6>SK (Sangguniang Kabataan)</h6>
+                                                <p>Manage SK budget allocations, youth programs, and related
+                                                    expenditures.</p>
+                                            </div>
+                                            <div class="role-check"><i class="bi bi-check"></i></div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-submit w-100 py-3 rounded-3 fw-semibold text-white custom-btn-effect" id="proceedBtn" onclick="goToStep2()" disabled>
+                                        Continue <i class="bi bi-arrow-right ms-1"></i>
+                                    </button>
+                                    <div class="text-center mt-3">
+                                        <span class="text-muted-custom small">Already have an account? </span>
+                                        <a href="login.html"
+                                            class="text-primary text-decoration-none small fw-semibold">Login
+                                            here.</a>
                                     </div>
                                 </div>
-                                <div class="mb-2">
-                                    <div class="select-wrapper">
-                                        <select class="form-control form-input p-3" id="barangaySelect"
-                                            onchange="showLocationInfo()">
-                                            <option value="" disabled selected>Select Barangay</option>
-                                        </select>
+
+                                <!-- ===== STEP 2: REGISTRATION FORM ===== -->
+                                <div class="step-panel" id="step2">
+                                    <h3 class="fw-bold text-dark-custom mb-1">Create an account.</h3>
+                                    <p class="text-muted-custom small mb-2">Enter your details to get started with the
+                                        system.</p>
+                                    <div id="roleBadge" class="selected-role-badge"></div>
+
+                                    <form id="registerForm" action="#" method="post" novalidate>
+                                        <fieldset class="mb-3 border-0 p-0">
+                                            <input type="text" class="form-control form-input p-3" id="registerName"
+                                                placeholder="Full Name" required>
+                                        </fieldset>
+                                        <fieldset class="mb-3 border-0 p-0">
+                                            <input type="email" class="form-control form-input p-3" id="registerEmail"
+                                                placeholder="Email Address" required>
+                                        </fieldset>
+
+                                        <!-- Super Admin: Municipality only -->
+                                        <div class="barangay-field" id="adminLocationFields">
+                                            <fieldset class="mb-3 border-0 p-0">
+                                                <div class="select-wrapper">
+                                                    <select class="form-control form-input p-3"
+                                                        id="adminMunicipalitySelect" onchange="showAdminLocationInfo()">
+                                                        <option value="" disabled selected>Select City / Municipality —
+                                                            Laguna
+                                                        </option>
+                                                        <option value="Alaminos">Alaminos</option>
+                                                        <option value="Bay">Bay</option>
+                                                        <option value="Biñan">Biñan (City)</option>
+                                                        <option value="Cabuyao">Cabuyao (City)</option>
+                                                        <option value="Calamba">Calamba (City)</option>
+                                                        <option value="Calauan">Calauan</option>
+                                                        <option value="Cavinti">Cavinti</option>
+                                                        <option value="Famy">Famy</option>
+                                                        <option value="Kalayaan">Kalayaan</option>
+                                                        <option value="Liliw">Liliw</option>
+                                                        <option value="Los Baños">Los Baños</option>
+                                                        <option value="Luisiana">Luisiana</option>
+                                                        <option value="Lumban">Lumban</option>
+                                                        <option value="Mabitac">Mabitac</option>
+                                                        <option value="Magdalena">Magdalena</option>
+                                                        <option value="Majayjay">Majayjay</option>
+                                                        <option value="Nagcarlan">Nagcarlan</option>
+                                                        <option value="Paete">Paete</option>
+                                                        <option value="Pagsanjan">Pagsanjan</option>
+                                                        <option value="Pakil">Pakil</option>
+                                                        <option value="Pangil">Pangil</option>
+                                                        <option value="Pila">Pila</option>
+                                                        <option value="Rizal">Rizal</option>
+                                                        <option value="San Pablo">San Pablo (City)</option>
+                                                        <option value="San Pedro">San Pedro (City)</option>
+                                                        <option value="Santa Cruz">Santa Cruz</option>
+                                                        <option value="Santa Maria">Santa Maria</option>
+                                                        <option value="Santa Rosa">Santa Rosa (City)</option>
+                                                        <option value="Siniloan">Siniloan</option>
+                                                        <option value="Victoria">Victoria</option>
+                                                    </select>
+                                                </div>
+                                            </fieldset>
+                                            <div class="loc-info-box" id="adminLocInfoBox">
+                                                <i class="bi bi-geo-alt-fill"></i>
+                                                <span id="adminLocInfoText"></span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Treasurer / SK: Municipality + Barangay -->
+                                        <div class="barangay-field" id="locationFields">
+                                            <fieldset class="mb-3 border-0 p-0">
+                                                <div class="select-wrapper">
+                                                    <select class="form-control form-input p-3" id="municipalitySelect"
+                                                        onchange="updateBarangays()">
+                                                        <option value="" disabled selected>Select City / Municipality
+                                                        </option>
+                                                        <option value="Alaminos">Alaminos</option>
+                                                        <option value="Bay">Bay</option>
+                                                        <option value="Biñan">Biñan (City)</option>
+                                                        <option value="Cabuyao">Cabuyao (City)</option>
+                                                        <option value="Calamba">Calamba (City)</option>
+                                                        <option value="Calauan">Calauan</option>
+                                                        <option value="Cavinti">Cavinti</option>
+                                                        <option value="Famy">Famy</option>
+                                                        <option value="Kalayaan">Kalayaan</option>
+                                                        <option value="Liliw">Liliw</option>
+                                                        <option value="Los Baños">Los Baños</option>
+                                                        <option value="Luisiana">Luisiana</option>
+                                                        <option value="Lumban">Lumban</option>
+                                                        <option value="Mabitac">Mabitac</option>
+                                                        <option value="Magdalena">Magdalena</option>
+                                                        <option value="Majayjay">Majayjay</option>
+                                                        <option value="Nagcarlan">Nagcarlan</option>
+                                                        <option value="Paete">Paete</option>
+                                                        <option value="Pagsanjan">Pagsanjan</option>
+                                                        <option value="Pakil">Pakil</option>
+                                                        <option value="Pangil">Pangil</option>
+                                                        <option value="Pila">Pila</option>
+                                                        <option value="Rizal">Rizal</option>
+                                                        <option value="San Pablo">San Pablo (City)</option>
+                                                        <option value="San Pedro">San Pedro (City)</option>
+                                                        <option value="Santa Cruz">Santa Cruz</option>
+                                                        <option value="Santa Maria">Santa Maria</option>
+                                                        <option value="Santa Rosa">Santa Rosa (City)</option>
+                                                        <option value="Siniloan">Siniloan</option>
+                                                        <option value="Victoria">Victoria</option>
+                                                    </select>
+                                                </div>
+                                            </fieldset>
+                                            <fieldset class="mb-3 border-0 p-0">
+                                                <div class="select-wrapper">
+                                                    <select class="form-control form-input p-3" id="barangaySelect"
+                                                        onchange="showLocationInfo()">
+                                                        <option value="" disabled selected>Select Barangay</option>
+                                                    </select>
+                                                </div>
+                                            </fieldset>
+                                            <div class="loc-info-box" id="locInfoBox">
+                                                <i class="bi bi-geo-alt-fill"></i>
+                                                <span id="locInfoText"></span>
+                                            </div>
+                                        </div>
+
+                                        <fieldset class="mb-3 border-0 p-0 position-relative">
+                                            <input type="password" class="form-control form-input p-3 pe-5"
+                                                id="registerPassword" placeholder="Create Password" required>
+                                            <span
+                                                class="position-absolute top-50 end-0 translate-middle-y pe-3 eye-toggle-btn text-muted-custom"
+                                                onclick="togglePassword('registerPassword','eyeIcon1')"
+                                                style="cursor:pointer;">
+                                                <i class="bi bi-eye" id="eyeIcon1"></i>
+                                            </span>
+                                        </fieldset>
+                                        <fieldset class="mb-3 border-0 p-0 position-relative">
+                                            <input type="password" class="form-control form-input p-3 pe-5"
+                                                id="confirmPassword" placeholder="Confirm Password" required>
+                                            <span
+                                                class="position-absolute top-50 end-0 translate-middle-y pe-3 eye-toggle-btn text-muted-custom"
+                                                onclick="togglePassword('confirmPassword','eyeIcon2')"
+                                                style="cursor:pointer;">
+                                                <i class="bi bi-eye" id="eyeIcon2"></i>
+                                            </span>
+                                        </fieldset>
+                                        <div class="d-flex gap-2 mt-4">
+                                            <button type="button" class="btn-back py-3 rounded-3 fw-semibold" onclick="goBack(1)">
+                                                <i class="bi bi-arrow-left me-1"></i> Back
+                                            </button>
+                                            <button type="submit" class="btn btn-submit flex-fill py-3 rounded-3 fw-semibold text-white custom-btn-effect">
+                                                Next <i class="bi bi-arrow-right ms-1"></i>
+                                            </button>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <span class="text-muted-custom small">Already have an account? </span>
+                                            <a href="login.html"
+                                                class="text-primary text-decoration-none small fw-semibold">Login
+                                                here.</a>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <!-- ===== STEP 3: TERMS & CONDITIONS ===== -->
+                                <div class="step-panel" id="step3">
+                                    <h3 class="fw-bold text-dark-custom mb-1">Terms &amp; Conditions</h3>
+                                    <p class="text-muted-custom small mb-3">Please read and accept before completing
+                                        your registration.</p>
+                                    <div id="roleBadge3" class="selected-role-badge"></div>
+
+                                    <div
+                                        style="border:1.5px solid #e5e7eb;border-radius:12px;overflow-y:auto;max-height:260px;padding:1rem 1.25rem;background:#f9fafb;font-size:12.5px;color:#374151;line-height:1.75;margin-bottom:1rem;">
+                                        <p style="font-weight:700;font-size:13px;color:#111827;margin:0 0 0.5rem;">BFMSS
+                                            — Terms
+                                            &amp; Conditions of Use</p>
+                                        <p style="font-size:11px;color:#6b7280;margin:0 0 1rem;">Effective Date: January
+                                            1, 2025</p>
+                                        <p>Welcome to the <strong>Barangay Financial Management Streamlining System
+                                                (BFMSS)</strong>. By registering and using this system, you agree to
+                                            comply with and
+                                            be bound by the following terms and conditions.</p>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">1. Acceptance
+                                            of Terms
+                                        </p>
+                                        <p>By creating an account, you confirm that you have read, understood, and agree
+                                            to these
+                                            Terms &amp; Conditions in full. If you do not agree with any provision
+                                            herein, you must
+                                            not use this system.</p>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">2. User
+                                            Responsibilities
+                                        </p>
+                                        <ul style="padding-left:1.1rem;margin:0 0 0.5rem;">
+                                            <li>You are responsible for maintaining the confidentiality of your login
+                                                credentials.
+                                            </li>
+                                            <li>You must not share your account with any unauthorized person.</li>
+                                            <li>You agree to provide accurate, complete, and up-to-date information
+                                                during
+                                                registration.</li>
+                                            <li>You must immediately notify the system administrator of any unauthorized
+                                                use or
+                                                security breach.</li>
+                                        </ul>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">3. Data
+                                            Privacy</p>
+                                        <p>All personal information collected during registration is governed by the
+                                            <strong>Data
+                                                Privacy Act of 2012 (Republic Act No. 10173)</strong>. Your data will
+                                            only be used
+                                            for the purpose of managing barangay financial records.</p>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">4. Authorized
+                                            Use</p>
+                                        <p>This system is exclusively for authorized government officials and personnel
+                                            of the
+                                            respective barangay. Unauthorized access or manipulation of financial data
+                                            is strictly
+                                            prohibited.</p>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">5. Accuracy
+                                            of Financial
+                                            Data</p>
+                                        <ul style="padding-left:1.1rem;margin:0 0 0.5rem;">
+                                            <li>Users are responsible for the accuracy and integrity of all financial
+                                                data
+                                                submitted.</li>
+                                            <li>Deliberate falsification or destruction of financial records is a
+                                                punishable
+                                                offense.</li>
+                                        </ul>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">6. Account
+                                            Termination
+                                        </p>
+                                        <p>The system administrators reserve the right to suspend or permanently
+                                            terminate any
+                                            account found in violation of these terms.</p>
+                                        <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">7. Governing
+                                            Law</p>
+                                        <p>These Terms &amp; Conditions shall be governed by the laws of the Republic of
+                                            the
+                                            Philippines.</p>
+                                        <p style="margin-top:1rem;color:#6b7280;font-size:11.5px;">By clicking "I Agree
+                                            &amp;
+                                            Register", you acknowledge that you have read, understood, and agree to be
+                                            bound by
+                                            these Terms &amp; Conditions.</p>
+                                    </div>
+
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input shadow-none" type="checkbox" id="termsAgree">
+                                        <label class="form-check-label small text-muted-custom" for="termsAgree"
+                                            style="font-size:13px;">
+                                            I have read and agree to the <strong style="color:#1a56db;">Terms &amp;
+                                                Conditions</strong> above.
+                                        </label>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-4">
+                                        <button type="button" class="btn-back py-3 rounded-3 fw-semibold" onclick="goBack(2)">
+                                            <i class="bi bi-arrow-left me-1"></i> Back
+                                        </button>
+                                        <button type="button" class="btn btn-submit flex-fill py-3 rounded-3 fw-semibold text-white custom-btn-effect" id="registerBtn"
+                                            onclick="handleSubmit()" disabled>
+                                            <i class="bi bi-person-check me-1"></i> I Agree &amp; Register
+                                        </button>
+                                    </div>
+                                    <div class="text-center mt-3">
+                                        <span class="text-muted-custom small">Already have an account? </span>
+                                        <a href="login.html"
+                                            class="text-primary text-decoration-none small fw-semibold">Login
+                                            here.</a>
                                     </div>
                                 </div>
-                                <div class="loc-info-box" id="locInfoBox">
-                                    <i class="bi bi-geo-alt-fill"></i>
-                                    <span id="locInfoText"></span>
-                                </div>
+
                             </div>
 
-                            <div class="mb-2 position-relative">
-                                <input type="password" class="form-control form-input p-3 pe-5" id="registerPassword"
-                                    placeholder="Create Password" required>
-                                <span class="position-absolute top-50 end-0 translate-middle-y pe-3 eye-toggle-btn"
-                                    onclick="togglePassword('registerPassword','eyeIcon1')">
-                                    <i class="bi bi-eye" id="eyeIcon1"></i>
-                                </span>
-                            </div>
-                            <div class="mb-3 position-relative">
-                                <input type="password" class="form-control form-input p-3 pe-5" id="confirmPassword"
-                                    placeholder="Confirm Password" required>
-                                <span class="position-absolute top-50 end-0 translate-middle-y pe-3 eye-toggle-btn"
-                                    onclick="togglePassword('confirmPassword','eyeIcon2')">
-                                    <i class="bi bi-eye" id="eyeIcon2"></i>
-                                </span>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn-back" onclick="goBack(1)">
-                                    <i class="bi bi-arrow-left me-1"></i> Back
-                                </button>
-                                <button type="submit" class="btn btn-submit flex-fill">
-                                    Next <i class="bi bi-arrow-right ms-1"></i>
-                                </button>
-                            </div>
-                            <div class="text-center mt-3">
-                                <span class="text-muted-custom small">Already have an account? </span>
-                                <a href="login.html" class="text-primary text-decoration-none small fw-semibold">Login
-                                    here.</a>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- ===== STEP 3: TERMS & CONDITIONS ===== -->
-                    <div class="step-panel" id="step3">
-                        <h3 class="fw-bold text-dark-custom mb-1">Terms &amp; Conditions</h3>
-                        <p class="text-muted-custom small mb-3">Please read and accept before completing your registration.</p>
-                        <div id="roleBadge3" class="selected-role-badge"></div>
-
-                        <div
-                            style="border:1.5px solid #e5e7eb;border-radius:12px;overflow-y:auto;max-height:260px;padding:1rem 1.25rem;background:#f9fafb;font-size:12.5px;color:#374151;line-height:1.75;margin-bottom:1rem;">
-                            <p style="font-weight:700;font-size:13px;color:#111827;margin:0 0 0.5rem;">BFMSS — Terms
-                                &amp; Conditions of Use</p>
-                            <p style="font-size:11px;color:#6b7280;margin:0 0 1rem;">Effective Date: January 1, 2025</p>
-                            <p>Welcome to the <strong>Barangay Financial Management Streamlining System
-                                    (BFMSS)</strong>. By registering and using this system, you agree to comply with and
-                                be bound by the following terms and conditions.</p>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">1. Acceptance of Terms
-                            </p>
-                            <p>By creating an account, you confirm that you have read, understood, and agree to these
-                                Terms &amp; Conditions in full. If you do not agree with any provision herein, you must
-                                not use this system.</p>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">2. User Responsibilities
-                            </p>
-                            <ul style="padding-left:1.1rem;margin:0 0 0.5rem;">
-                                <li>You are responsible for maintaining the confidentiality of your login credentials.
-                                </li>
-                                <li>You must not share your account with any unauthorized person.</li>
-                                <li>You agree to provide accurate, complete, and up-to-date information during
-                                    registration.</li>
-                                <li>You must immediately notify the system administrator of any unauthorized use or
-                                    security breach.</li>
-                            </ul>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">3. Data Privacy</p>
-                            <p>All personal information collected during registration is governed by the <strong>Data
-                                    Privacy Act of 2012 (Republic Act No. 10173)</strong>. Your data will only be used
-                                for the purpose of managing barangay financial records.</p>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">4. Authorized Use</p>
-                            <p>This system is exclusively for authorized government officials and personnel of the
-                                respective barangay. Unauthorized access or manipulation of financial data is strictly
-                                prohibited.</p>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">5. Accuracy of Financial
-                                Data</p>
-                            <ul style="padding-left:1.1rem;margin:0 0 0.5rem;">
-                                <li>Users are responsible for the accuracy and integrity of all financial data
-                                    submitted.</li>
-                                <li>Deliberate falsification or destruction of financial records is a punishable
-                                    offense.</li>
-                            </ul>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">6. Account Termination
-                            </p>
-                            <p>The system administrators reserve the right to suspend or permanently terminate any
-                                account found in violation of these terms.</p>
-                            <p style="font-weight:700;color:#111827;margin:0.75rem 0 0.25rem;">7. Governing Law</p>
-                            <p>These Terms &amp; Conditions shall be governed by the laws of the Republic of the
-                                Philippines.</p>
-                            <p style="margin-top:1rem;color:#6b7280;font-size:11.5px;">By clicking "I Agree &amp;
-                                Register", you acknowledge that you have read, understood, and agree to be bound by
-                                these Terms &amp; Conditions.</p>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            <input class="form-check-input shadow-none" type="checkbox" id="termsAgree">
-                            <label class="form-check-label small text-muted-custom" for="termsAgree" style="font-size:13px;">
-                                I have read and agree to the <strong style="color:#1a56db;">Terms &amp;
-                                    Conditions</strong> above.
-                            </label>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn-back" onclick="goBack(2)">
-                                <i class="bi bi-arrow-left me-1"></i> Back
-                            </button>
-                            <button type="button" class="btn btn-submit flex-fill" id="registerBtn"
-                                onclick="handleSubmit()" disabled>
-                                <i class="bi bi-person-check me-1"></i> I Agree &amp; Register
-                            </button>
-                        </div>
-                        <div class="text-center mt-3">
-                            <span class="text-muted-custom small">Already have an account? </span>
-                            <a href="login.html" class="text-primary text-decoration-none small fw-semibold">Login
-                                here.</a>
-                        </div>
-                    </div>
-
-                </div>
-
-                <figure class="col-lg-6 d-none d-lg-block p-0 m-0 position-relative">
+                            <figure class="col-lg-6 d-none d-lg-block p-0 m-0 position-relative">
                                 <img src="https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?q=80&w=1000&auto=format&fit=crop"
                                     alt="Barangay Hall Concept" class="w-100 h-100 object-fit-cover login-side-image">
                                 <div class="image-dark-overlay"></div>

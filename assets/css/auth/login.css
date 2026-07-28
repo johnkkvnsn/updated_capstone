@@ -1,7 +1,9 @@
 /* ==========================================================
    CSS Reset
    ========================================================== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -16,11 +18,11 @@
     --text-main: #212529;
     --text-muted: #64748b;
     --card-bg: #ffffff;
-    
+
     --input-bg: #f8fafc;
     --input-border: #cbd5e1;
 
-    --primary-color: #1e3a8a; 
+    --primary-color: #1e3a8a;
     --accent-color: #2563eb;
 }
 
@@ -30,11 +32,11 @@
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --card-bg: #1e293b;
-    
+
     --input-bg: #334155;
     --input-border: #475569;
 
-    --primary-color: #60a5fa; 
+    --primary-color: #60a5fa;
     --accent-color: #3b82f6;
 }
 
@@ -48,28 +50,35 @@
     overflow-x: hidden;
 }
 
-.text-dark-custom { color: var(--text-main) !important; }
-.text-muted-custom { color: var(--text-muted) !important; }
-.text-primary { color: var(--primary-color) !important; }
+.text-dark-custom {
+    color: var(--text-main) !important;
+}
+
+.text-muted-custom {
+    color: var(--text-muted) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
 
 /* ==========================================================
    Thick Diagonal Background na may Puting Pagitan
    ========================================================== */
 .login-diagonal-bg {
     /* Ang background ay may tatlong bahagi: light gray sa kaliwa, puti sa gitna, at blue sa kanan */
-    background: linear-gradient(105deg, 
-        var(--bg-secondary) 47%, 
-        #ffffff 47%, 
-        #ffffff 51%, 
-        var(--primary-color) 51%
-    );
+    background: linear-gradient(105deg,
+            var(--bg-secondary) 47%,
+            #ffffff 47%,
+            #ffffff 51%,
+            var(--primary-color) 51%);
 }
 
 /* ==========================================================
    Form Card and Layout
    ========================================================== */
 .login-main-card {
-    min-height: 600px;
+    height: 700px;
     border-radius: 20px !important;
     background-color: var(--card-bg);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
@@ -77,6 +86,22 @@
 
 .login-form-area {
     background-color: var(--card-bg);
+    overflow-y: auto;
+    height: 100%;
+}
+
+/* Custom scrollbar for consistent UI */
+.login-form-area::-webkit-scrollbar {
+    width: 6px;
+}
+
+.login-form-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.login-form-area::-webkit-scrollbar-thumb {
+    background-color: var(--input-border);
+    border-radius: 10px;
 }
 
 .brand-icon-box {
@@ -126,7 +151,10 @@
     background-color: var(--primary-color);
 }
 
-.custom-btn-effect { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.custom-btn-effect {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
 .custom-btn-effect:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);
@@ -145,5 +173,6 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.3); /* Dims the image slightly so it looks premium */
+    background-color: rgba(0, 0, 0, 0.3);
+    /* Dims the image slightly */
 }
