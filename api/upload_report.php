@@ -40,7 +40,10 @@ $prefix = $metadata['module'] === 'sk' ? 'BFMSS_SK' : 'BFMSS';
 $safeType = preg_replace('/[^a-zA-Z0-9]/', '_', $metadata['type'] ?? 'report');
 $filename = $prefix . '_' . $safeType . '_' . time() . '_' . uniqid() . '.pdf';
 $targetPath = $uploadDir . $filename;
-$dbPath = '/updated_capstone/uploads/reports/' . $filename;
+// Determine dynamic base URL for the database path
+$isLocal = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
+$baseUrl = $isLocal ? '/updated_capstone/' : '/';
+$dbPath = $baseUrl . 'uploads/reports/' . $filename;
 
 // Move uploaded file
 if (!move_uploaded_file($_FILES['pdf_file']['tmp_name'], $targetPath)) {
