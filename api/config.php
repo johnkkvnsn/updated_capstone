@@ -27,7 +27,7 @@ $options = [
 try {
      $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-     die(json_encode(['status' => 'error', 'message' => 'Database connection failed.']));
+     die(json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $e->getMessage()]));
 }
 
 function sendJsonResponse($data, $statusCode = 200) {
